@@ -18,10 +18,13 @@ from real_estate_spatial.spatial.coordinates import (
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
 from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex, SpatialIndex
 from real_estate_spatial.types import (
+    BoundingBox,
     CompCandidate,
     Coordinates,
     ModelMetrics,
     Property,
+    PropertyType,
+    ValuationMethodology,
     ValuationResult,
 )
 
@@ -30,7 +33,10 @@ __version__ = "0.1.0"
 __all__ = [
     "__version__",
     "Coordinates",
+    "BoundingBox",
     "Property",
+    "PropertyType",
+    "ValuationMethodology",
     "ValuationResult",
     "CompCandidate",
     "ModelMetrics",
