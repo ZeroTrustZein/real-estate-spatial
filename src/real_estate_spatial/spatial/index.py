@@ -6,7 +6,7 @@ import heapq
 import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 

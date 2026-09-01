@@ -254,6 +254,10 @@ class SpatialQueryCache:
         """Current number of items in cache."""
         return len(self._cache)
 
+    def __len__(self) -> int:
+        """Return current number of items in cache."""
+        return self.size
+
     @property
     def capacity(self) -> int:
         """Maximum cache capacity."""
