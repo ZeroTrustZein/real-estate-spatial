@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "real-estate-spatial"
+version = "0.1.0"
+description = "Real estate spatial valuation and automated property comparables engine with geospatial indexing and XGBoost"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Zein" }
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "click>=8.0.0",
+    "rich>=12.0.0",
+    "pydantic>=2.0.0",
+    "typing_extensions>=4.0.0"
+]
+
+[project.optional-dependencies]
+ml = [
+    "xgboost>=1.7.0",
+    "scikit-learn>=1.2.0",
+    "scipy>=1.10.0"
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0"
+]
+all = [
+    "real-estate-spatial[ml,dev]"
+]
+
+[project.scripts]
+real-estate-spatial = "real_estate_spatial.cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["real_estate_spatial*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --cov=real_estate_spatial --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = []
+
+[tool.coverage.run]
+source = ["real_estate_spatial"]
+omit = ["tests/*"]
