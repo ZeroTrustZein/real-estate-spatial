@@ -102,6 +102,28 @@ class TestPropertyDataLoader:
         assert loaded[1].id == "ALT-02"
         assert loaded[1].price is None
 
+    def test_csv_load_whitespace_and_blank_values(self, tmp_path: Path) -> None:
+        """Verify load_csv parses blank and whitespace values as None instead of raising ValueError."""
+        filepath = tmp_path / "whitespace.csv"
+        csv_content = (
+            "id,address,lat,lon,price,sqft,bedrooms,bathrooms,lot_size_sqft,year_built,property_type,sale_date\n"
+            "PROP-WS1, 100 Main St , 37.77 , -122.41 ,  , 1500 , 3 , 2.0 ,   ,   , single_family ,   \n"
+            "PROP-WS2, 200 Oak St , 37.78 , -122.42 , 500000 , 1200 , 2 , 1.0 , 4000 , 1990 , condo , 2023-01-01 \n"
+        )
+        filepath.write_text(csv_content, encoding="utf-8")
+
+        loaded = PropertyDataLoader.load_csv(filepath)
+        assert len(loaded) == 2
+        p1 = loaded[0]
+        assert p1.id == "PROP-WS1"
+        assert p1.address == "100 Main St"
+        assert p1.coordinates.lat == pytest.approx(37.77)
+        assert p1.coordinates.lon == pytest.approx(-122.41)
+        assert p1.price is None
+        assert p1.lot_size_sqft is None
+        assert p1.year_built is None
+        assert p1.sale_date is None
+
     def test_geojson_roundtrip(self, tmp_path: Path, sample_properties: List[Property]) -> None:
         """Verify GeoJSON FeatureCollection serialization and loading."""
         filepath = tmp_path / "geo" / "properties.geojson"

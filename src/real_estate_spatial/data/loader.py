@@ -42,6 +42,13 @@ class PropertyDataLoader:
             json.dump(data, f, indent=indent)
 
     @staticmethod
+    def _clean_str(val: Any) -> Optional[str]:
+        if val is None:
+            return None
+        s = str(val).strip()
+        return s if s else None
+
+    @staticmethod
     def load_csv(filepath: Union[str, Path]) -> List[Property]:
         """Load properties from a CSV file."""
         path = Path(filepath)
@@ -50,29 +57,39 @@ class PropertyDataLoader:
         with path.open("r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                lat = float(row.get("lat") or row.get("latitude", 0.0))
-                lon = float(row.get("lon") or row.get("longitude", 0.0))
-                price = float(row["price"]) if row.get("price") else None
-                sqft = float(row.get("sqft", 0.0))
-                beds = int(float(row.get("bedrooms", 0)))
-                baths = float(row.get("bathrooms", 0.0))
-                lot_size = (
-                    float(row["lot_size_sqft"])
-                    if row.get("lot_size_sqft")
-                    else None
-                )
-                year_built = (
-                    int(float(row["year_built"]))
-                    if row.get("year_built")
-                    else None
-                )
-                prop_type = row.get("property_type", "single_family")
-                sale_date = row.get("sale_date") or None
+                lat_str = PropertyDataLoader._clean_str(row.get("lat")) or PropertyDataLoader._clean_str(row.get("latitude"))
+                lat = float(lat_str) if lat_str is not None else 0.0
+
+                lon_str = PropertyDataLoader._clean_str(row.get("lon")) or PropertyDataLoader._clean_str(row.get("longitude"))
+                lon = float(lon_str) if lon_str is not None else 0.0
+
+                price_str = PropertyDataLoader._clean_str(row.get("price"))
+                price = float(price_str) if price_str is not None else None
+
+                sqft_str = PropertyDataLoader._clean_str(row.get("sqft"))
+                sqft = float(sqft_str) if sqft_str is not None else 0.0
+
+                beds_str = PropertyDataLoader._clean_str(row.get("bedrooms"))
+                beds = int(float(beds_str)) if beds_str is not None else 0
+
+                baths_str = PropertyDataLoader._clean_str(row.get("bathrooms"))
+                baths = float(baths_str) if baths_str is not None else 0.0
+
+                lot_str = PropertyDataLoader._clean_str(row.get("lot_size_sqft"))
+                lot_size = float(lot_str) if lot_str is not None else None
+
+                year_str = PropertyDataLoader._clean_str(row.get("year_built"))
+                year_built = int(float(year_str)) if year_str is not None else None
+
+                prop_type = PropertyDataLoader._clean_str(row.get("property_type")) or "single_family"
+                sale_date = PropertyDataLoader._clean_str(row.get("sale_date"))
+                prop_id = PropertyDataLoader._clean_str(row.get("id")) or f"PROP-{len(properties)+1}"
+                address = PropertyDataLoader._clean_str(row.get("address")) or ""
 
                 properties.append(
                     Property(
-                        id=row.get("id", f"PROP-{len(properties)+1}"),
-                        address=row.get("address", ""),
+                        id=prop_id,
+                        address=address,
                         coordinates=Coordinates(lat=lat, lon=lon),
                         price=price,
                         sqft=sqft,

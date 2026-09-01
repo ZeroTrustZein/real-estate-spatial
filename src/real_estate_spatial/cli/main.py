@@ -744,23 +744,25 @@ def benchmark_cmd(
     if not json_mode:
         console.print(f"[cyan]Benchmarking on {len(train_props)} train / {len(test_props)} test samples...[/cyan]")
 
+    valid_test = [p for p in test_props if p.price is not None and p.price > 0]
+
     # 1. Comps Engine
     comps_engine = CompsEngine().fit(train_props)
-    comps_preds = [comps_engine.value(tp).estimated_value for tp in test_props]
-    y_test = np.array([p.price for p in test_props if p.price is not None], dtype=np.float64)
+    comps_preds = [comps_engine.value(tp).estimated_value for tp in valid_test]
+    y_test = np.array([p.price for p in valid_test], dtype=np.float64)
     comps_metrics = HedonicSpatialRegression.compute_metrics(y_test, np.array(comps_preds))
 
     # 2. Hedonic Model
     hedonic = HedonicSpatialRegression().fit(train_props)
-    hedonic_metrics = hedonic.evaluate(test_props)
+    hedonic_metrics = hedonic.evaluate(valid_test)
 
     # 3. GBM Model
     gbm = SpatialGradientBoostingModel().fit(train_props)
-    gbm_metrics = gbm.evaluate(test_props)
+    gbm_metrics = gbm.evaluate(valid_test)
 
     # 4. Ensemble Model
     ensemble = EnsembleValuationModel().fit(train_props)
-    ensemble_metrics = ensemble.evaluate(test_props)
+    ensemble_metrics = ensemble.evaluate(valid_test)
 
     if json_mode:
         payload = {

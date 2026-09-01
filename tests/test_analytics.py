@@ -1,5 +1,6 @@
 """Tests for portfolio assessment and submarket spatial analytics."""
 
+import math
 import pytest
 import numpy as np
 
@@ -147,3 +148,40 @@ class TestSubmarketAnalyzer:
         assert "submarkets" in report
         assert "top_expensive_submarkets" in report
         assert "most_volatile_submarkets" in report
+
+    def test_zero_sqft_submarket_metrics(self):
+        """Zero-sqft properties should not cause TypeError or NaN in price_per_sqft metrics."""
+        props = [
+            Property(
+                id="P1",
+                address="1 Main St",
+                coordinates=Coordinates(lat=37.77, lon=-122.41),
+                price=500000.0,
+                sqft=0.0,
+            ),
+            Property(
+                id="P2",
+                address="2 Main St",
+                coordinates=Coordinates(lat=37.771, lon=-122.411),
+                price=600000.0,
+                sqft=1000.0,
+            ),
+            Property(
+                id="P3",
+                address="3 Main St",
+                coordinates=Coordinates(lat=37.772, lon=-122.412),
+                price=700000.0,
+                sqft=0.0,
+            ),
+        ]
+        analyzer = SubmarketAnalyzer(grid_cell_size_deg=0.05, min_cluster_size=2)
+        submarkets = analyzer.identify_submarkets(props, method="grid")
+        assert len(submarkets) == 1
+        sm = submarkets[0]
+        assert sm.median_price_per_sqft == 600.0
+        assert sm.mean_price_per_sqft == 600.0
+        assert not math.isnan(sm.median_price_per_sqft)
+
+        report = analyzer.generate_market_report(props)
+        assert report["overall_median_price_per_sqft"] == 600.0
+        assert report["overall_mean_price_per_sqft"] == 600.0

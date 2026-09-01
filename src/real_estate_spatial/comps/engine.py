@@ -39,6 +39,11 @@ class CompsEngine:
     def _parse_date(self, d_str: Optional[str]) -> Optional[date]:
         if not d_str:
             return None
+        try:
+            iso_str = d_str.replace("Z", "+00:00") if d_str.endswith("Z") else d_str
+            return datetime.fromisoformat(iso_str).date()
+        except (ValueError, TypeError):
+            pass
         for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m", "%Y"):
             try:
                 return datetime.strptime(d_str, fmt).date()

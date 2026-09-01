@@ -61,6 +61,7 @@ def bounding_box(
     radius_km: float,
 ) -> Tuple[float, float, float, float]:
     """Calculate approximate bounding box (min_lat, min_lon, max_lat, max_lon) for a radius."""
+    radius_km = max(0.0, float(radius_km))
     lat_delta = radius_km / 111.0
     cos_lat = math.cos(math.radians(lat))
     # Avoid division by zero near poles

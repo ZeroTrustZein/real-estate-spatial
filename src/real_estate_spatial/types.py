@@ -134,7 +134,7 @@ class BoundingBox:
         """Check if a coordinate point lies inside this bounding box."""
         if isinstance(point, Coordinates):
             lat, lon = point.lat, point.lon
-        elif isinstance(point, (tuple, list, Sequence)) and len(point) == 2:
+        elif isinstance(point, (tuple, list, Sequence)) and not isinstance(point, (str, bytes)) and len(point) == 2:
             lat, lon = float(point[0]), float(point[1])
         else:
             raise TypeError(f"Expected Coordinates or 2-element sequence, got {type(point)}")

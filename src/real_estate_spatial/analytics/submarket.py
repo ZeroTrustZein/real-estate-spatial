@@ -116,7 +116,13 @@ class SubmarketAnalyzer:
                 continue
 
             prices = np.array([p.price for p in props], dtype=np.float64)
-            pps_vals = np.array([p.price_per_sqft for p in props], dtype=np.float64)
+            valid_pps = [
+                p.price_per_sqft
+                for p in props
+                if p.price_per_sqft is not None and p.price_per_sqft > 0
+            ]
+            med_pps = float(np.median(valid_pps)) if valid_pps else 0.0
+            mean_pps = float(np.mean(valid_pps)) if valid_pps else 0.0
             sqfts = np.array([p.sqft for p in props], dtype=np.float64)
             lats = [p.coordinates.lat for p in props]
             lons = [p.coordinates.lon for p in props]
@@ -138,8 +144,8 @@ class SubmarketAnalyzer:
                 center_lon=float(np.mean(lons)),
                 median_price=float(np.median(prices)),
                 mean_price=mean_p,
-                median_price_per_sqft=float(np.median(pps_vals)),
-                mean_price_per_sqft=float(np.mean(pps_vals)),
+                median_price_per_sqft=med_pps,
+                mean_price_per_sqft=mean_pps,
                 min_price=float(np.min(prices)),
                 max_price=float(np.max(prices)),
                 price_std_dev=std_p,
@@ -168,7 +174,13 @@ class SubmarketAnalyzer:
             }
 
         prices = [p.price for p in valid_props]
-        pps_list = [p.price_per_sqft for p in valid_props]
+        valid_pps_all = [
+            p.price_per_sqft
+            for p in valid_props
+            if p.price_per_sqft is not None and p.price_per_sqft > 0
+        ]
+        med_pps_all = float(np.median(valid_pps_all)) if valid_pps_all else 0.0
+        mean_pps_all = float(np.mean(valid_pps_all)) if valid_pps_all else 0.0
 
         # Top rankings
         by_price = sorted(submarkets, key=lambda s: s.median_price, reverse=True)
@@ -180,8 +192,8 @@ class SubmarketAnalyzer:
             "submarket_count": len(submarkets),
             "overall_median_price": round(float(np.median(prices)), 2),
             "overall_mean_price": round(float(np.mean(prices)), 2),
-            "overall_median_price_per_sqft": round(float(np.median(pps_list)), 2),
-            "overall_mean_price_per_sqft": round(float(np.mean(pps_list)), 2),
+            "overall_median_price_per_sqft": round(med_pps_all, 2),
+            "overall_mean_price_per_sqft": round(mean_pps_all, 2),
             "submarkets": [s.to_dict() for s in submarkets],
             "top_expensive_submarkets": [s.to_dict() for s in by_price[:3]],
             "top_affordable_submarkets": [s.to_dict() for s in by_price[-3:]],

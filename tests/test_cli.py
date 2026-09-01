@@ -361,3 +361,24 @@ def test_cli_benchmark(tmp_path: Path) -> None:
     assert "benchmark" in data
     assert "ensemble" in data["benchmark"]
     assert "comps" in data["benchmark"]
+
+
+def test_cli_benchmark_with_unpriced_test_props(tmp_path: Path) -> None:
+    """Benchmark should correctly ignore unpriced properties in test split without dimension error."""
+    runner = CliRunner()
+    data_file = tmp_path / "props_unpriced.json"
+    runner.invoke(cli, ["generate", "-n", "30", "-o", str(data_file)])
+
+    # Inject unpriced property at end of file
+    with data_file.open("r", encoding="utf-8") as f:
+        props = json.load(f)
+    props[-1]["price"] = None
+    props[-2]["price"] = 0.0
+    with data_file.open("w", encoding="utf-8") as f:
+        json.dump(props, f)
+
+    res = runner.invoke(cli, ["benchmark", "-d", str(data_file), "--split", "0.7", "--json"])
+    assert res.exit_code == 0
+    data = json.loads(res.output)
+    assert "benchmark" in data
+    assert "comps" in data["benchmark"]

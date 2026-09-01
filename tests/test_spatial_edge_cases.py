@@ -68,6 +68,14 @@ class TestSpatialCoordinatesEdgeCases:
         assert point_in_bbox(0.0, 0.0, bbox_tuple) is True
         assert point_in_bbox(50.0, 50.0, bbox_tuple) is False
 
+    def test_bounding_box_negative_radius(self) -> None:
+        """Negative radius should be clamped to zero."""
+        min_lat, min_lon, max_lat, max_lon = bounding_box(37.77, -122.41, -50.0)
+        assert min_lat == pytest.approx(37.77)
+        assert max_lat == pytest.approx(37.77)
+        assert min_lon == pytest.approx(-122.41)
+        assert max_lon == pytest.approx(-122.41)
+
 
 class TestSpatialIndexEdgeCases:
     """Test spatial indexing with k > n, zero radius, empty datasets, and duplicate coordinates."""

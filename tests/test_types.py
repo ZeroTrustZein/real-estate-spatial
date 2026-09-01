@@ -210,6 +210,12 @@ class TestBoundingBox:
         # Invalid point
         with pytest.raises(TypeError):
             bbox.contains("invalid")  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            bbox.contains("ab")  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            bbox.contains("12")  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            bbox.contains(b"12")  # type: ignore[arg-type]
 
     def test_to_tuple_from_tuple_to_dict_from_dict(self) -> None:
         """Test tuple and dictionary conversions for BoundingBox."""
