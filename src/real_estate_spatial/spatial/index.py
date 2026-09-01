@@ -15,8 +15,19 @@ from real_estate_spatial.spatial.coordinates import (
     bounding_box,
     haversine_distance,
     haversine_distance_vectorized,
+    point_in_bbox,
 )
-from real_estate_spatial.types import Coordinates, Property
+from real_estate_spatial.types import BoundingBox, Coordinates, Property
+
+
+def _unpack_bbox(
+    bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]
+) -> Tuple[float, float, float, float]:
+    if isinstance(bbox, BoundingBox):
+        return (bbox.min_lat, bbox.min_lon, bbox.max_lat, bbox.max_lon)
+    if len(bbox) != 4:
+        raise ValueError("Bounding box must contain 4 values: (min_lat, min_lon, max_lat, max_lon)")
+    return (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
 
 
 class SpatialIndex(ABC):
@@ -39,6 +50,13 @@ class SpatialIndex(ABC):
         self, coord: Coordinates, k: int
     ) -> List[Tuple[Property, float]]:
         """Find k nearest properties and their distances in km."""
+        ...
+
+    @abstractmethod
+    def query_bbox(
+        self, bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]
+    ) -> List[Property]:
+        """Find all properties within bounding box (min_lat, min_lon, max_lat, max_lon)."""
         ...
 
     @abstractmethod
@@ -150,7 +168,7 @@ class KDTreeIndex(SpatialIndex):
         self, coord: Coordinates, radius_km: float
     ) -> List[Property]:
         """Find properties within radius_km."""
-        if self._root is None:
+        if self._root is None or radius_km < 0:
             return []
 
         target_pt = _lat_lon_to_cartesian(coord.lat, coord.lon)
@@ -181,6 +199,22 @@ class KDTreeIndex(SpatialIndex):
                 _search(second)
 
         _search(self._root)
+        return results
+
+    def query_bbox(
+        self, bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]
+    ) -> List[Property]:
+        """Find properties within bounding box."""
+        if self._root is None:
+            return []
+        min_lat, min_lon, max_lat, max_lon = _unpack_bbox(bbox)
+        if min_lat > max_lat or min_lon > max_lon:
+            return []
+
+        results: List[Property] = []
+        for prop in self._properties:
+            if point_in_bbox(prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)):
+                results.append(prop)
         return results
 
     def query_knn(
@@ -278,6 +312,8 @@ class GridIndex(SpatialIndex):
         self, coord: Coordinates, radius_km: float
     ) -> List[Property]:
         """Find properties within radius_km using bounding box grid search."""
+        if not self._properties or radius_km < 0:
+            return []
         min_lat, min_lon, max_lat, max_lon = bounding_box(coord.lat, coord.lon, radius_km)
         min_r, min_c = self._get_cell_key(min_lat, min_lon)
         max_r, max_c = self._get_cell_key(max_lat, max_lon)
@@ -297,6 +333,32 @@ class GridIndex(SpatialIndex):
             if dist <= radius_km:
                 results.append(prop)
 
+        return results
+
+    def query_bbox(
+        self, bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]
+    ) -> List[Property]:
+        """Find properties within bounding box using grid cells."""
+        if not self._properties:
+            return []
+        min_lat, min_lon, max_lat, max_lon = _unpack_bbox(bbox)
+        if min_lat > max_lat or min_lon > max_lon:
+            return []
+
+        min_r, min_c = self._get_cell_key(min_lat, min_lon)
+        max_r, max_c = self._get_cell_key(max_lat, max_lon)
+
+        candidates: List[Property] = []
+        for r in range(min_r, max_r + 1):
+            for c in range(min_c, max_c + 1):
+                cell_props = self._grid.get((r, c))
+                if cell_props:
+                    candidates.extend(cell_props)
+
+        results: List[Property] = []
+        for prop in candidates:
+            if point_in_bbox(prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)):
+                results.append(prop)
         return results
 
     def query_knn(

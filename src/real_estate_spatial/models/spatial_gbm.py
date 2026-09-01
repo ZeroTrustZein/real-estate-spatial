@@ -150,6 +150,22 @@ class _NumpyGradientBoostingRegressor:
             preds += self.learning_rate * tree.predict(X)
         return preds
 
+    def get_feature_importances(self, n_features: int) -> np.ndarray:
+        counts = np.zeros(n_features, dtype=np.float64)
+
+        def _traverse(node: Any) -> None:
+            if isinstance(node, _SimpleDecisionTreeNode):
+                counts[node.feature_idx] += 1.0
+                _traverse(node.left)
+                _traverse(node.right)
+
+        for tree in self.trees:
+            _traverse(tree.root)
+        total = float(np.sum(counts))
+        if total > 0:
+            return counts / total
+        return np.ones(n_features, dtype=np.float64) / max(1, n_features)
+
 
 class SpatialGradientBoostingModel(BaseValuationModel):
     """Gradient boosting regressor augmented with spatial lag and proximity features."""
@@ -238,6 +254,22 @@ class SpatialGradientBoostingModel(BaseValuationModel):
 
         self.is_fitted = True
         return self
+
+    @property
+    def feature_importances_(self) -> np.ndarray:
+        """Return feature importance array."""
+        if not self.is_fitted or self._model is None:
+            raise RuntimeError("Model is not fitted. Call fit() first.")
+        if self.use_xgboost and HAS_XGBOOST and hasattr(self._model, "feature_importances_"):
+            return np.asarray(self._model.feature_importances_, dtype=np.float64)
+        if hasattr(self._model, "get_feature_importances"):
+            return self._model.get_feature_importances(len(self.FEATURE_NAMES))
+        return np.ones(len(self.FEATURE_NAMES), dtype=np.float64) / len(self.FEATURE_NAMES)
+
+    def get_feature_importances(self) -> Dict[str, float]:
+        """Return dictionary mapping feature names to their relative importance."""
+        importances = self.feature_importances_
+        return {name: float(imp) for name, imp in zip(self.FEATURE_NAMES, importances)}
 
     def predict(self, properties: Sequence[Property]) -> np.ndarray:
         """Predict prices using trained spatial gradient booster."""

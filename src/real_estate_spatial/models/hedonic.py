@@ -145,6 +145,22 @@ class HedonicSpatialRegression(BaseValuationModel):
         preds = X @ self.coefficients
         return np.maximum(10000.0, preds)
 
+    @property
+    def feature_importances_(self) -> np.ndarray:
+        """Return normalized absolute feature coefficients (excluding intercept)."""
+        if not self.is_fitted or len(self.coefficients) == 0:
+            raise RuntimeError("Model is not fitted. Call fit() first.")
+        coefs = np.abs(self.coefficients[1:])
+        total = float(np.sum(coefs))
+        if total > 0:
+            return coefs / total
+        return np.ones(len(coefs), dtype=np.float64) / max(1, len(coefs))
+
+    def get_feature_importances(self) -> Dict[str, float]:
+        """Return dictionary mapping feature names (excluding intercept) to relative importance."""
+        importances = self.feature_importances_
+        return {name: float(imp) for name, imp in zip(self.FEATURE_NAMES[1:], importances)}
+
     def get_feature_contributions(self, prop: Property) -> Dict[str, float]:
         """Calculate additive feature contributions to property value."""
         if not self.is_fitted:
