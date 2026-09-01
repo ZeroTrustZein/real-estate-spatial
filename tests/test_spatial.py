@@ -17,6 +17,10 @@ from real_estate_spatial.spatial.coordinates import (
 )
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
 from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex
+from real_estate_spatial.spatial.persistence import (
+    SpatialIndexSerializer,
+    SpatialQueryCache,
+)
 from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
 
@@ -343,3 +347,201 @@ class TestSpatialFeatureExtractor:
         assert "dist_airport_km" in features
         assert features["dist_downtown_km"] >= 0.0
         assert features["dist_airport_km"] > 0.0
+
+
+class TestSpatialIndexSerializer:
+    """Test spatial index and property persistence."""
+
+    def test_save_and_load_kdtree_json(self, sample_properties: List[Property], tmp_path) -> None:
+        """KDTreeIndex roundtrips cleanly via JSON serialization."""
+        original_tree = KDTreeIndex(sample_properties)
+        file_path = tmp_path / "kdtree.json"
+
+        saved_path = SpatialIndexSerializer.save_index(original_tree, file_path, format="json")
+        assert saved_path == str(file_path)
+        assert file_path.exists()
+
+        loaded_tree = SpatialIndexSerializer.load_index(file_path)
+        assert isinstance(loaded_tree, KDTreeIndex)
+        assert loaded_tree.size() == original_tree.size()
+
+        target = Coordinates(lat=37.7750, lon=-122.4190)
+        orig_knn = original_tree.query_knn(target, k=3)
+        load_knn = loaded_tree.query_knn(target, k=3)
+
+        assert len(load_knn) == len(orig_knn)
+        for i in range(len(orig_knn)):
+            assert load_knn[i][0].id == orig_knn[i][0].id
+            assert load_knn[i][1] == pytest.approx(orig_knn[i][1], rel=1e-5)
+
+    def test_save_and_load_grid_json(self, sample_properties: List[Property], tmp_path) -> None:
+        """GridIndex roundtrips cleanly via JSON serialization including cell size."""
+        original_grid = GridIndex(sample_properties, cell_size_deg=0.02)
+        file_path = tmp_path / "grid.json"
+
+        SpatialIndexSerializer.save_index(original_grid, file_path, format="json")
+        loaded_grid = SpatialIndexSerializer.load_index(file_path, format="json")
+
+        assert isinstance(loaded_grid, GridIndex)
+        assert loaded_grid.cell_size_deg == 0.02
+        assert loaded_grid.size() == original_grid.size()
+
+        target = Coordinates(lat=37.7750, lon=-122.4190)
+        orig_radius = original_grid.query_radius(target, radius_km=1.0)
+        load_radius = loaded_grid.query_radius(target, radius_km=1.0)
+        assert len(load_radius) == len(orig_radius)
+
+    def test_save_and_load_kdtree_binary(self, sample_properties: List[Property], tmp_path) -> None:
+        """KDTreeIndex roundtrips cleanly via binary serialization."""
+        original_tree = KDTreeIndex(sample_properties)
+        file_path = tmp_path / "kdtree.pkl"
+
+        SpatialIndexSerializer.save_index(original_tree, file_path, format="binary")
+        assert file_path.exists()
+
+        loaded_tree = SpatialIndexSerializer.load_index(file_path)
+        assert isinstance(loaded_tree, KDTreeIndex)
+        assert loaded_tree.size() == original_tree.size()
+
+        target = Coordinates(lat=37.7750, lon=-122.4190)
+        orig_knn = original_tree.query_knn(target, k=3)
+        load_knn = loaded_tree.query_knn(target, k=3)
+        assert len(load_knn) == len(orig_knn)
+
+    def test_save_and_load_grid_binary(self, sample_properties: List[Property], tmp_path) -> None:
+        """GridIndex roundtrips cleanly via binary serialization."""
+        original_grid = GridIndex(sample_properties, cell_size_deg=0.03)
+        file_path = tmp_path / "grid.bin"
+
+        SpatialIndexSerializer.save_index(original_grid, file_path, format="binary")
+        loaded_grid = SpatialIndexSerializer.load_index(file_path, format="binary")
+
+        assert isinstance(loaded_grid, GridIndex)
+        assert loaded_grid.size() == original_grid.size()
+
+    def test_save_and_load_properties(self, sample_properties: List[Property], tmp_path) -> None:
+        """Properties list serialization and deserialization in JSON and binary."""
+        json_path = tmp_path / "props.json"
+        SpatialIndexSerializer.save_properties(sample_properties, json_path, format="json")
+        loaded_json = SpatialIndexSerializer.load_properties(json_path)
+        assert len(loaded_json) == len(sample_properties)
+        assert loaded_json[0].id == sample_properties[0].id
+
+        bin_path = tmp_path / "props.pkl"
+        SpatialIndexSerializer.save_properties(sample_properties, bin_path, format="binary")
+        loaded_bin = SpatialIndexSerializer.load_properties(bin_path)
+        assert len(loaded_bin) == len(sample_properties)
+        assert loaded_bin[0].id == sample_properties[0].id
+
+    def test_file_errors_and_invalid_formats(self, tmp_path) -> None:
+        """Error handling for missing files and unsupported formats."""
+        with pytest.raises(FileNotFoundError):
+            SpatialIndexSerializer.load_index(tmp_path / "non_existent.json")
+
+        with pytest.raises(FileNotFoundError):
+            SpatialIndexSerializer.load_properties(tmp_path / "non_existent.json")
+
+        with pytest.raises(ValueError):
+            SpatialIndexSerializer.save_index(KDTreeIndex(), tmp_path / "test.xyz", format="xml")
+
+        with pytest.raises(ValueError):
+            SpatialIndexSerializer.save_properties([], tmp_path / "test.xyz", format="xml")
+
+
+class TestSpatialQueryCache:
+    """Test in-memory spatial query caching and LRU eviction."""
+
+    def test_knn_cache_hits_misses_hit_rate(self, sample_properties: List[Property]) -> None:
+        """kNN caching properly tracks hits, misses, hit rate, and coordinate rounding."""
+        cache = SpatialQueryCache(max_size=10, precision=5)
+        assert cache.capacity == 10
+        assert cache.size == 0
+        assert cache.hits == 0
+        assert cache.misses == 0
+        assert cache.hit_rate == 0.0
+
+        coord = Coordinates(lat=37.77490001, lon=-122.41940002)
+        assert cache.get_knn(coord, k=3) is None
+        assert cache.misses == 1
+        assert cache.hits == 0
+        assert cache.hit_rate == 0.0
+
+        sample_res = [(sample_properties[0], 0.1), (sample_properties[1], 0.2)]
+        cache.set_knn(coord, k=3, results=sample_res)
+        assert cache.size == 1
+
+        # Query exact coord
+        hit_res = cache.get_knn(coord, k=3)
+        assert hit_res is not None
+        assert len(hit_res) == 2
+        assert cache.hits == 1
+        assert cache.misses == 1
+        assert cache.hit_rate == 0.5
+
+        # Query with micro-shift rounded to same 5 decimals
+        shifted_coord = Coordinates(lat=37.77490003, lon=-122.41940004)
+        hit_shifted = cache.get_knn(shifted_coord, k=3)
+        assert hit_shifted is not None
+        assert cache.hits == 2
+        assert cache.hit_rate == pytest.approx(2 / 3, rel=1e-4)
+
+    def test_radius_and_lag_caching(self, sample_properties: List[Property]) -> None:
+        """Radius query and spatial lag calculation caching."""
+        cache = SpatialQueryCache(max_size=10, precision=5)
+        coord = Coordinates(lat=37.7749, lon=-122.4194)
+
+        # Radius query
+        assert cache.get_radius(coord, radius_km=1.5) is None
+        cache.set_radius(coord, radius_km=1.5, results=sample_properties[:2])
+        cached_radius = cache.get_radius(coord, radius_km=1.5)
+        assert cached_radius is not None
+        assert len(cached_radius) == 2
+
+        # Spatial lag
+        assert cache.get_lag(coord, "price", 5) is None
+        cache.set_lag(coord, "price", 5, 750000.0)
+        cached_lag = cache.get_lag(coord, "price", 5)
+        assert cached_lag == 750000.0
+
+    def test_lru_eviction(self) -> None:
+        """LRU cache evicts oldest items when capacity is reached."""
+        cache = SpatialQueryCache(max_size=3, precision=5)
+
+        c1 = Coordinates(lat=37.1000, lon=-122.1000)
+        c2 = Coordinates(lat=37.2000, lon=-122.2000)
+        c3 = Coordinates(lat=37.3000, lon=-122.3000)
+        c4 = Coordinates(lat=37.4000, lon=-122.4000)
+
+        cache.set_lag(c1, "price", 5, 100.0)
+        cache.set_lag(c2, "price", 5, 200.0)
+        cache.set_lag(c3, "price", 5, 300.0)
+        assert cache.size == 3
+
+        # Access c1 to make it most recently used
+        assert cache.get_lag(c1, "price", 5) == 100.0
+
+        # Add 4th item -> c2 should be evicted because c1 was accessed and c3 was added later
+        cache.set_lag(c4, "price", 5, 400.0)
+        assert cache.size == 3
+
+        assert cache.get_lag(c2, "price", 5) is None  # Evicted
+        assert cache.get_lag(c1, "price", 5) == 100.0  # Kept
+        assert cache.get_lag(c3, "price", 5) == 300.0  # Kept
+        assert cache.get_lag(c4, "price", 5) == 400.0  # Kept
+
+    def test_cache_clear(self) -> None:
+        """clear() resets cache items and metrics."""
+        cache = SpatialQueryCache(max_size=5)
+        coord = Coordinates(lat=37.7749, lon=-122.4194)
+        cache.set_lag(coord, "price", 5, 500000.0)
+        _ = cache.get_lag(coord, "price", 5)
+
+        assert cache.size == 1
+        assert cache.hits == 1
+
+        cache.clear()
+        assert cache.size == 0
+        assert cache.hits == 0
+        assert cache.misses == 0
+        assert cache.hit_rate == 0.0
+

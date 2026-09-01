@@ -3,11 +3,19 @@
 from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.comps.scorer import SimilarityScorer
+from real_estate_spatial.data.cleaner import CleaningReport, DataCleaner
 from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
 from real_estate_spatial.data.loader import PropertyDataLoader
+from real_estate_spatial.data.validator import (
+    DataValidator,
+    ValidationIssue,
+    ValidationResult,
+)
 from real_estate_spatial.models.base import BaseValuationModel, ValuationModel
+from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
+from real_estate_spatial.pipeline.orchestrator import ValuationOrchestrator
 from real_estate_spatial.spatial.coordinates import (
     EARTH_RADIUS_KM,
     bounding_box,
@@ -17,6 +25,10 @@ from real_estate_spatial.spatial.coordinates import (
 )
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
 from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex, SpatialIndex
+from real_estate_spatial.spatial.persistence import (
+    SpatialIndexSerializer,
+    SpatialQueryCache,
+)
 from real_estate_spatial.types import (
     BoundingBox,
     CompCandidate,
@@ -44,6 +56,8 @@ __all__ = [
     "KDTreeIndex",
     "GridIndex",
     "SpatialFeatureExtractor",
+    "SpatialIndexSerializer",
+    "SpatialQueryCache",
     "EARTH_RADIUS_KM",
     "bounding_box",
     "haversine_distance",
@@ -56,6 +70,13 @@ __all__ = [
     "ValuationModel",
     "HedonicSpatialRegression",
     "SpatialGradientBoostingModel",
+    "EnsembleValuationModel",
+    "ValuationOrchestrator",
     "SyntheticRealEstateGenerator",
     "PropertyDataLoader",
+    "DataValidator",
+    "ValidationResult",
+    "ValidationIssue",
+    "DataCleaner",
+    "CleaningReport",
 ]

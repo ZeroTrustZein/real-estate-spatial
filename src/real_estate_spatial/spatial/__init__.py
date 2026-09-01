@@ -9,6 +9,10 @@ from real_estate_spatial.spatial.coordinates import (
 )
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
 from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex, SpatialIndex
+from real_estate_spatial.spatial.persistence import (
+    SpatialIndexSerializer,
+    SpatialQueryCache,
+)
 
 __all__ = [
     "EARTH_RADIUS_KM",
@@ -20,4 +24,6 @@ __all__ = [
     "KDTreeIndex",
     "GridIndex",
     "SpatialFeatureExtractor",
+    "SpatialIndexSerializer",
+    "SpatialQueryCache",
 ]

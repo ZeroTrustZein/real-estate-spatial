@@ -15,6 +15,8 @@ from real_estate_spatial import (
     CompCandidate,
     CompsEngine,
     Coordinates,
+    DataCleaner,
+    DataValidator,
     GridIndex,
     HedonicSpatialRegression,
     KDTreeIndex,
@@ -25,6 +27,8 @@ from real_estate_spatial import (
     SpatialFeatureExtractor,
     SpatialGradientBoostingModel,
     SpatialIndex,
+    SpatialIndexSerializer,
+    SpatialQueryCache,
     SyntheticRealEstateGenerator,
     ValuationModel,
     ValuationResult,
@@ -45,6 +49,10 @@ def test_package_exports() -> None:
     assert SpatialIndex is not None
     assert CompsEngine is not None
     assert ValuationModel is not None
+    assert SpatialIndexSerializer is not None
+    assert SpatialQueryCache is not None
+    assert DataValidator is not None
+    assert DataCleaner is not None
 
 
 def test_coordinates_instantiation_and_validation() -> None:
