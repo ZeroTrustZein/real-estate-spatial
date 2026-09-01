@@ -376,8 +376,8 @@ class ValuationResult:
     confidence_score: float
     lower_bound: float
     upper_bound: float
-    comps_used: List[Any]
-    methodology: str
+    comps_used: List[Any] = field(default_factory=list)
+    methodology: str = "valuation"
     feature_contributions: Dict[str, float] = field(default_factory=dict)
     timestamp: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()

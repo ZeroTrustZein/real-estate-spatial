@@ -23,15 +23,17 @@ class SyntheticRealEstateGenerator:
         base_price_sqft: float = 650.0,
         cbd_gradient: float = -20.0,  # $/sqft decrease per km from CBD
         seed: Optional[int] = 42,
+        random_seed: Optional[int] = None,
     ) -> None:
         self.center_lat = center_lat
         self.center_lon = center_lon
         self.base_price_sqft = base_price_sqft
         self.cbd_gradient = cbd_gradient
-        self.seed = seed
+        self.seed = random_seed if random_seed is not None else seed
 
-    def generate(self, n_samples: int = 500, seed: Optional[int] = None) -> List[Property]:
+    def generate(self, n_samples: int = 500, seed: Optional[int] = None, n_properties: Optional[int] = None, noise_level: float = 0.06) -> List[Property]:
         """Generate n realistic synthetic property records with spatial pricing effects."""
+        count = n_properties if n_properties is not None else n_samples
         active_seed = seed if seed is not None else self.seed
         if active_seed is not None:
             np.random.seed(active_seed)
@@ -55,7 +57,7 @@ class SyntheticRealEstateGenerator:
             "Divisadero St", "Haight St", "Castro St", "Fillmore St", "Columbus Ave"
         ]
 
-        for i in range(n_samples):
+        for i in range(count):
             # Pick a cluster
             cluster = np.random.choice(clusters, p=cluster_weights)
             lat = cluster["lat"] + np.random.normal(0.0, 0.018)
@@ -93,7 +95,7 @@ class SyntheticRealEstateGenerator:
             # Adjust for age and bathrooms
             age = max(0, 2026 - year_built)
             age_factor = 1.0 - (age * 0.002)
-            noise = np.random.normal(1.0, 0.06)
+            noise = np.random.normal(1.0, noise_level)
 
             price = round(
                 sqft * ppsqft * age_factor * (1.0 + (bedrooms - 2) * 0.05) * noise,
@@ -129,3 +131,12 @@ class SyntheticRealEstateGenerator:
             properties.append(prop)
 
         return properties
+
+    def generate_dataset(
+        self,
+        n_properties: int = 500,
+        noise_level: float = 0.06,
+        seed: Optional[int] = None,
+    ) -> List[Property]:
+        """Alias for generate()."""
+        return self.generate(n_properties=n_properties, noise_level=noise_level, seed=seed)

@@ -17,6 +17,7 @@ from real_estate_spatial import (
     Coordinates,
     DataCleaner,
     DataValidator,
+    EnsembleValuationModel,
     GridIndex,
     HedonicSpatialRegression,
     KDTreeIndex,
@@ -31,6 +32,7 @@ from real_estate_spatial import (
     SpatialQueryCache,
     SyntheticRealEstateGenerator,
     ValuationModel,
+    ValuationOrchestrator,
     ValuationResult,
     __version__,
     bounding_box,
@@ -53,6 +55,8 @@ def test_package_exports() -> None:
     assert SpatialQueryCache is not None
     assert DataValidator is not None
     assert DataCleaner is not None
+    assert EnsembleValuationModel is not None
+    assert ValuationOrchestrator is not None
 
 
 def test_coordinates_instantiation_and_validation() -> None:

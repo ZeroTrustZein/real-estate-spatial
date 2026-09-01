@@ -1,5 +1,7 @@
 """real-estate-spatial: Spatial property valuation and automated comparables engine."""
 
+from real_estate_spatial.analytics.portfolio import PortfolioAssessor, PortfolioRiskSummary
+from real_estate_spatial.analytics.submarket import SubmarketAnalyzer, SubmarketMetrics
 from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.comps.scorer import SimilarityScorer
@@ -79,4 +81,8 @@ __all__ = [
     "ValidationIssue",
     "DataCleaner",
     "CleaningReport",
+    "PortfolioAssessor",
+    "PortfolioRiskSummary",
+    "SubmarketAnalyzer",
+    "SubmarketMetrics",
 ]
