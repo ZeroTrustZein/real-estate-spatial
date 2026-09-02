@@ -6,7 +6,10 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from real_estate_spatial.models.base import BaseValuationModel
+from real_estate_spatial.models.base import (
+    BaseValuationModel,
+    extract_structural_features,
+)
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
 from real_estate_spatial.types import Property, ValuationResult
 
@@ -202,18 +205,16 @@ class SpatialGradientBoostingModel(BaseValuationModel):
     def _extract_features(
         self, prop: Property, background: Sequence[Property]
     ) -> np.ndarray:
-        age = float(2026 - prop.year_built) if prop.year_built else 25.0
-        lot_size = prop.lot_size_sqft if prop.lot_size_sqft is not None else prop.sqft * 3.0
-
+        struct_feats = extract_structural_features(prop)
         spatial_feats = self._extractor.extract_all(prop, background)
 
         return np.array(
             [
-                prop.sqft,
-                float(prop.bedrooms),
-                float(prop.bathrooms),
-                age,
-                lot_size,
+                struct_feats["sqft"],
+                struct_feats["bedrooms"],
+                struct_feats["bathrooms"],
+                struct_feats["age"],
+                struct_feats["lot_size_sqft"],
                 prop.coordinates.lat,
                 prop.coordinates.lon,
                 spatial_feats.get("spatial_lag_price_k5", 0.0),

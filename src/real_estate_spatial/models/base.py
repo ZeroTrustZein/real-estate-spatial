@@ -99,3 +99,17 @@ class BaseValuationModel(ABC):
 
 
 ValuationModel = BaseValuationModel
+
+
+def extract_structural_features(
+    prop: Property, ref_year: int = 2026
+) -> Dict[str, float]:
+    """Extract standardized structural property features."""
+    return {
+        "sqft": float(prop.sqft),
+        "sqft_squared": float((prop.sqft / 1000.0) ** 2),
+        "bedrooms": float(prop.bedrooms),
+        "bathrooms": float(prop.bathrooms),
+        "age": prop.age(ref_year),
+        "lot_size_sqft": prop.effective_lot_size(),
+    }

@@ -13,6 +13,64 @@ from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex, SpatialInd
 from real_estate_spatial.types import Coordinates, Property
 
 
+def _resolve_format(path: Path, format: Optional[str] = None, allow_inference: bool = True) -> str:
+    """Resolve file serialization format ('json' or 'binary')."""
+    if format is not None:
+        fmt = str(format).lower().strip()
+        if fmt in ("binary", "pickle", "pkl", "bin", "dat"):
+            return "binary"
+        elif fmt in ("json", "geojson"):
+            return "json"
+        else:
+            raise ValueError(f"Unsupported format: {format}. Supported formats are 'json' and 'binary'")
+
+    if allow_inference:
+        ext = path.suffix.lower()
+        if ext in (".pkl", ".pickle", ".bin", ".dat"):
+            return "binary"
+        elif ext in (".json", ".geojson"):
+            return "json"
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    json.load(f)
+                return "json"
+            except Exception:
+                return "binary"
+
+    return "json"
+
+
+def _atomic_dump(path: Path, payload: Any, fmt: str) -> str:
+    """Atomically dump payload to disk in JSON or binary format."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    if fmt == "binary":
+        with tmp_path.open("wb") as f:
+            pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    elif fmt == "json":
+        with tmp_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+    else:
+        raise ValueError(f"Unsupported format: {fmt}")
+    tmp_path.replace(path)
+    return str(path)
+
+
+def _load_payload(path: Path, fmt: str) -> Any:
+    """Load and return deserialized payload from disk."""
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if fmt == "binary":
+        with path.open("rb") as f:
+            return pickle.load(f)
+    elif fmt == "json":
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        raise ValueError(f"Unsupported format: {fmt}")
+
+
 class SpatialIndexSerializer:
     """Serializer and deserializer for spatial indices and property datasets."""
 
@@ -28,45 +86,25 @@ class SpatialIndexSerializer:
             The string path to the saved file.
         """
         path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fmt = format.lower()
-
+        fmt = _resolve_format(path, format, allow_inference=False)
         index_type = "grid" if isinstance(index, GridIndex) else "kdtree"
         params: Dict[str, Any] = {}
         if isinstance(index, GridIndex):
             params["cell_size_deg"] = index.cell_size_deg
 
         properties = getattr(index, "_properties", [])
-        tmp_path = path.with_name(f".{path.name}.tmp")
+        payload: Dict[str, Any] = {
+            "version": "0.1.0",
+            "index_type": index_type,
+            "property_count": len(properties),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "params": params,
+            "properties": [p.to_dict() for p in properties],
+        }
+        if fmt == "binary":
+            payload["index"] = index
 
-        if fmt in ("binary", "pickle", "pkl", "bin"):
-            payload = {
-                "version": "0.1.0",
-                "index_type": index_type,
-                "property_count": len(properties),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "params": params,
-                "properties": [p.to_dict() for p in properties],
-                "index": index,
-            }
-            with tmp_path.open("wb") as f:
-                pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
-        elif fmt == "json":
-            payload = {
-                "version": "0.1.0",
-                "index_type": index_type,
-                "property_count": len(properties),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "params": params,
-                "properties": [p.to_dict() for p in properties],
-            }
-            with tmp_path.open("w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2)
-        else:
-            raise ValueError(f"Unsupported format: {format}. Supported formats are 'json' and 'binary'")
-
-        tmp_path.replace(path)
-        return str(path)
+        return _atomic_dump(path, payload, fmt)
 
     @staticmethod
     def load_index(
@@ -81,61 +119,28 @@ class SpatialIndexSerializer:
         if not path.exists():
             raise FileNotFoundError(f"Index file not found: {path}")
 
-        fmt = format.lower() if format is not None else None
-        if fmt is None:
-            ext = path.suffix.lower()
-            if ext in (".pkl", ".pickle", ".bin", ".dat"):
-                fmt = "binary"
-            elif ext in (".json", ".geojson"):
-                fmt = "json"
-            else:
-                # Attempt JSON first, fallback to binary
-                try:
-                    with path.open("r", encoding="utf-8") as f:
-                        json.load(f)
-                    fmt = "json"
-                except Exception:
-                    fmt = "binary"
+        fmt = _resolve_format(path, format, allow_inference=True)
+        data = _load_payload(path, fmt)
 
-        if fmt in ("binary", "pickle", "pkl", "bin"):
-            with path.open("rb") as f:
-                obj = pickle.load(f)
-            if isinstance(obj, SpatialIndex):
-                return obj
-            if isinstance(obj, dict):
-                if "index" in obj and isinstance(obj["index"], SpatialIndex):
-                    return obj["index"]
-                index_type = obj.get("index_type", "kdtree").lower()
-                params = obj.get("params", {})
-                props_raw = obj.get("properties", [])
-                props = [
-                    p if isinstance(p, Property) else Property.from_dict(p)
-                    for p in props_raw
-                ]
-                if index_type == "grid":
-                    cell_size = float(params.get("cell_size_deg", 0.05))
-                    return GridIndex(props, cell_size_deg=cell_size)
-                return KDTreeIndex(props)
-            raise ValueError(f"Invalid serialized index binary payload: {type(obj)}")
+        if isinstance(data, SpatialIndex):
+            return data
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected JSON object for spatial index, got {type(data)}")
 
-        elif fmt == "json":
-            with path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                raise ValueError(f"Expected JSON object for spatial index, got {type(data)}")
+        if "index" in data and isinstance(data["index"], SpatialIndex):
+            return data["index"]
 
-            index_type = data.get("index_type", "kdtree").lower()
-            params = data.get("params", {})
-            props_raw = data.get("properties", [])
-            props = [Property.from_dict(p) for p in props_raw]
-
-            if index_type == "grid":
-                cell_size = float(params.get("cell_size_deg", 0.05))
-                return GridIndex(props, cell_size_deg=cell_size)
-            return KDTreeIndex(props)
-
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        index_type = data.get("index_type", "kdtree").lower()
+        params = data.get("params", {})
+        props_raw = data.get("properties", [])
+        props = [
+            p if isinstance(p, Property) else Property.from_dict(p)
+            for p in props_raw
+        ]
+        if index_type == "grid":
+            cell_size = float(params.get("cell_size_deg", 0.05))
+            return GridIndex(props, cell_size_deg=cell_size)
+        return KDTreeIndex(props)
 
     @staticmethod
     def save_properties(
@@ -149,21 +154,9 @@ class SpatialIndexSerializer:
             The string path to the saved file.
         """
         path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fmt = format.lower()
-        tmp_path = path.with_name(f".{path.name}.tmp")
-
-        if fmt in ("binary", "pickle", "pkl", "bin"):
-            with tmp_path.open("wb") as f:
-                pickle.dump([p.to_dict() for p in properties], f, protocol=pickle.HIGHEST_PROTOCOL)
-        elif fmt == "json":
-            with tmp_path.open("w", encoding="utf-8") as f:
-                json.dump([p.to_dict() for p in properties], f, indent=2)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
-
-        tmp_path.replace(path)
-        return str(path)
+        fmt = _resolve_format(path, format, allow_inference=False)
+        payload = [p.to_dict() for p in properties]
+        return _atomic_dump(path, payload, fmt)
 
     @staticmethod
     def load_properties(
@@ -175,47 +168,17 @@ class SpatialIndexSerializer:
         if not path.exists():
             raise FileNotFoundError(f"Properties file not found: {path}")
 
-        fmt = format.lower() if format is not None else None
-        if fmt is None:
-            ext = path.suffix.lower()
-            if ext in (".pkl", ".pickle", ".bin", ".dat"):
-                fmt = "binary"
-            elif ext in (".json", ".geojson"):
-                fmt = "json"
-            else:
-                try:
-                    with path.open("r", encoding="utf-8") as f:
-                        json.load(f)
-                    fmt = "json"
-                except Exception:
-                    fmt = "binary"
+        fmt = _resolve_format(path, format, allow_inference=True)
+        data = _load_payload(path, fmt)
 
-        if fmt in ("binary", "pickle", "pkl", "bin"):
-            with path.open("rb") as f:
-                data = pickle.load(f)
-            if isinstance(data, list):
-                return [
-                    p if isinstance(p, Property) else Property.from_dict(p)
-                    for p in data
-                ]
-            if isinstance(data, dict) and "properties" in data:
-                return [
-                    p if isinstance(p, Property) else Property.from_dict(p)
-                    for p in data["properties"]
-                ]
-            raise ValueError(f"Unexpected binary structure for properties: {type(data)}")
-
-        elif fmt == "json":
-            with path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict) and "properties" in data:
-                data = data["properties"]
-            if not isinstance(data, list):
-                raise ValueError(f"Expected list of properties in JSON, got {type(data)}")
-            return [Property.from_dict(p) for p in data]
-
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        if isinstance(data, dict) and "properties" in data:
+            data = data["properties"]
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list of properties, got {type(data)}")
+        return [
+            p if isinstance(p, Property) else Property.from_dict(p)
+            for p in data
+        ]
 
 
 class SpatialQueryCache:

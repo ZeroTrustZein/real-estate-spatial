@@ -222,6 +222,31 @@ class Property:
             return self.price / self.sqft
         return None
 
+    def age(self, ref_year: int = 2026) -> float:
+        """Calculate property age relative to reference year (default 2026).
+
+        Falls back to 25.0 if year_built is not set or invalid.
+        """
+        if self.year_built is not None:
+            try:
+                yb = int(self.year_built)
+                return float(max(0, int(ref_year) - yb))
+            except (ValueError, TypeError):
+                return 25.0
+        return 25.0
+
+    def effective_lot_size(self) -> float:
+        """Return lot size in sqft if present and positive, otherwise estimate as 3x sqft."""
+        lot = getattr(self, "lot_size_sqft", None) or getattr(self, "lot_sqft", None)
+        if lot is not None and lot > 0:
+            return float(lot)
+        return float(self.sqft * 3.0)
+
+    @property
+    def lot_sqft(self) -> Optional[float]:
+        """Convenience alias for lot_size_sqft."""
+        return self.lot_size_sqft
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert property instance to serializable dictionary."""
         return {

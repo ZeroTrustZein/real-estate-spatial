@@ -11,12 +11,27 @@ import click
 import numpy as np
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 
 import real_estate_spatial
 from real_estate_spatial.analytics.portfolio import PortfolioAssessor
 from real_estate_spatial.analytics.submarket import SubmarketAnalyzer
+from real_estate_spatial.cli.formatters import (
+    create_batch_valuation_table,
+    create_benchmark_table,
+    create_capabilities_table,
+    create_cleaning_report_table,
+    create_comps_table,
+    create_portfolio_summary_table,
+    create_portfolio_type_breakdown_table,
+    create_spatial_outliers_table,
+    create_stress_test_panel,
+    create_submarket_table,
+    create_training_metrics_table,
+    create_validation_issues_table,
+    create_validation_summary_table,
+    create_valuation_drivers_table,
+    create_valuation_panel,
+)
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.data.cleaner import DataCleaner
 from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
@@ -179,15 +194,7 @@ def info_cmd(json_mode: bool) -> None:
         )
         return
 
-    table = Table(title="Real Estate Spatial Engine Capabilities", show_header=True)
-    table.add_column("Module", style="cyan")
-    table.add_column("Components", style="white")
-    table.add_column("Description", style="dim")
-
-    for cap in capabilities:
-        table.add_row(cap["module"], cap["components"], cap["description"])
-
-    console.print(table)
+    console.print(create_capabilities_table(capabilities))
 
 
 @cli.command(name="generate")
@@ -280,40 +287,13 @@ def validate_cmd(
         click.echo(json.dumps(payload, indent=2))
         return
 
-    table = Table(title=f"Dataset Validation Summary ({data})", show_header=True)
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="white", justify="right")
-
-    table.add_row("Total Records", str(val_res.total_records))
-    table.add_row("Valid Records", f"[green]{val_res.valid_records}[/green]")
-    table.add_row("Invalid Records", f"[red]{val_res.invalid_records}[/red]" if val_res.invalid_records else "0")
-    table.add_row("Total Issues", str(len(val_res.issues)))
-    table.add_row("Spatial Outliers", str(len(spatial_outliers)))
-
-    console.print(table)
+    console.print(create_validation_summary_table(val_res, len(spatial_outliers), data))
 
     if val_res.issues:
-        issue_table = Table(title="Validation Issues (Sample)", show_header=True)
-        issue_table.add_column("Property ID", style="cyan")
-        issue_table.add_column("Field", style="yellow")
-        issue_table.add_column("Rule", style="dim")
-        issue_table.add_column("Severity", justify="center")
-        issue_table.add_column("Message")
-
-        for issue in val_res.issues[:15]:
-            sev_style = "[red]ERROR[/red]" if issue.severity == "error" else "[yellow]WARN[/yellow]"
-            issue_table.add_row(issue.property_id, issue.field, issue.rule, sev_style, issue.message)
-
-        console.print(issue_table)
+        console.print(create_validation_issues_table(val_res.issues, max_rows=15))
 
     if spatial_outliers:
-        outlier_table = Table(title="Spatial Outliers Detected", show_header=True)
-        outlier_table.add_column("Property ID", style="cyan")
-        outlier_table.add_column("Z-Score", justify="right", style="magenta")
-        outlier_table.add_column("Reason", style="dim")
-        for p, z, reason in spatial_outliers[:15]:
-            outlier_table.add_row(p.id, f"{z:.2f}", reason)
-        console.print(outlier_table)
+        console.print(create_spatial_outliers_table(spatial_outliers, max_rows=15))
 
     if is_clean:
         console.print(Panel("[bold green]Validation PASSED: All records meet quality and spatial criteria.[/bold green]"))
@@ -363,21 +343,7 @@ def clean_cmd(
         )
         return
 
-    table = Table(title=f"Dataset Cleaning Report ({data} -> {output})", show_header=True)
-    table.add_column("Metric", style="cyan")
-    table.add_column("Count", justify="right", style="white")
-
-    table.add_row("Initial Records", str(report.initial_count))
-    table.add_row("Cleaned Records", f"[bold green]{report.cleaned_count}[/bold green]")
-    table.add_row("Dropped Records", f"[bold red]{report.dropped_count}[/bold red]" if report.dropped_count else "0")
-
-    for reason, cnt in report.dropped_reasons.items():
-        table.add_row(f"  Dropped: {reason}", str(cnt))
-
-    for field_name, cnt in report.imputed_fields.items():
-        table.add_row(f"  Imputed: {field_name}", f"[yellow]{cnt}[/yellow]")
-
-    console.print(table)
+    console.print(create_cleaning_report_table(report, data, output))
     console.print(f"[bold green]Saved cleaned dataset ({len(cleaned_props)} records) to [cyan]{output}[/cyan][/bold green]")
 
 
@@ -450,31 +416,7 @@ def comps_cmd(
         console.print("[yellow]No comparable properties found within given search radius.[/yellow]")
         return
 
-    table = Table(title=f"Top {len(comps)} Comparable Properties (Radius: {radius} km)")
-    table.add_column("Rank", justify="center", style="dim")
-    table.add_column("Comp ID", style="cyan")
-    table.add_column("Distance", justify="right")
-    table.add_column("Similarity", justify="right", style="green")
-    table.add_column("Specs (Sqft/Bed/Bath)", justify="center")
-    table.add_column("Sale Price", justify="right")
-    table.add_column("Adjusted Price", justify="right", style="bold yellow")
-
-    for i, c in enumerate(comps, 1):
-        p = c.property
-        specs = f"{int(p.sqft)} sqft | {p.bedrooms}b/{p.bathrooms}ba"
-        sale_str = f"${p.price:,.0f}" if p.price else "N/A"
-        adj_str = f"${c.adjusted_price:,.0f}"
-        table.add_row(
-            str(i),
-            p.id,
-            f"{c.distance_km:.2f} km",
-            f"{c.similarity_score*100:.1f}%",
-            specs,
-            sale_str,
-            adj_str,
-        )
-
-    console.print(table)
+    console.print(create_comps_table(comps, radius))
 
 
 @cli.command(name="value")
@@ -537,30 +479,13 @@ def value_cmd(
             click.echo(json.dumps(result.to_dict(), indent=2))
         return
 
-    panel_content = (
-        f"[bold cyan]Estimated Value:[/bold cyan] [bold green]${result.estimated_value:,.2f}[/bold green]\n"
-        f"[bold]Confidence Score:[/bold] {result.confidence_score * 100:.1f}%\n"
-        f"[bold]Valuation Range:[/bold] ${result.lower_bound:,.2f} - ${result.upper_bound:,.2f} "
-        f"([dim]spread: {result.spread_pct * 100:.1f}%[/dim])\n"
-        f"[bold]Methodology:[/bold] {result.methodology}\n"
-        f"[bold]Comps Used:[/bold] {len(result.comps_used) if result.comps_used else 0}"
-    )
-
-    console.print(
-        Panel(panel_content, title=f"Property Valuation ({method.upper()})", expand=False)
-    )
+    console.print(create_valuation_panel(result, method))
 
     if explain:
         exp = orchestrator.explain_valuation(result)
         console.print(Panel(exp["narrative_summary"], title="Valuation Narrative", expand=False))
         if exp["key_drivers"]:
-            d_table = Table(title="Top Valuation Drivers", show_header=True)
-            d_table.add_column("Feature / Component", style="cyan")
-            d_table.add_column("Impact / Weight", justify="right", style="bold green")
-            for k, v in exp["key_drivers"].items():
-                val_fmt = f"${v:,.2f}" if abs(v) > 100 else f"{v:+.2f}"
-                d_table.add_row(k, val_fmt)
-            console.print(d_table)
+            console.print(create_valuation_drivers_table(exp["key_drivers"]))
 
 
 @cli.command(name="batch-value")
@@ -606,20 +531,7 @@ def batch_value_cmd(
         click.echo(json.dumps(payload, indent=2))
         return
 
-    table = Table(title=f"Batch Valuation Results ({len(results)} properties)", show_header=True)
-    table.add_column("Property ID", style="cyan")
-    table.add_column("Estimated Value", justify="right", style="bold green")
-    table.add_column("Confidence", justify="right")
-    table.add_column("Valuation Range", justify="right", style="dim")
-    table.add_column("Methodology", style="white")
-
-    for r in results[:50]:
-        val_str = f"${r.estimated_value:,.2f}"
-        conf_str = f"{r.confidence_score * 100:.1f}%"
-        range_str = f"${r.lower_bound:,.0f} - ${r.upper_bound:,.0f}"
-        table.add_row(r.property_id, val_str, conf_str, range_str, r.methodology)
-
-    console.print(table)
+    console.print(create_batch_valuation_table(results, max_rows=50))
     if len(results) > 50:
         console.print(f"[dim]Showing first 50 of {len(results)} records.[/dim]")
     if output:
@@ -693,20 +605,7 @@ def train_cmd(
         click.echo(json.dumps(payload, indent=2))
         return
 
-    table = Table(title=f"Training Metrics ({method.upper()})")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Score", style="bold green")
-
-    table.add_row("MAPE (%)", f"{metrics.mape:.2f}%")
-    table.add_row("MdAPE (%)", f"{metrics.mdape:.2f}%")
-    table.add_row("MAE ($)", f"${metrics.mae:,.2f}")
-    table.add_row("RMSE ($)", f"${metrics.rmse:,.2f}")
-    table.add_row("R² Score", f"{metrics.r2:.4f}")
-    table.add_row("Within 5% of True Price", f"{metrics.within_5_pct:.1f}%")
-    table.add_row("Within 10% of True Price", f"{metrics.within_10_pct:.1f}%")
-    table.add_row("Within 20% of True Price", f"{metrics.within_20_pct:.1f}%")
-
-    console.print(table)
+    console.print(create_training_metrics_table(metrics, method))
     if output:
         console.print(f"[dim]Metrics saved to {output}[/dim]")
 
@@ -780,30 +679,13 @@ def benchmark_cmd(
         click.echo(json.dumps(payload, indent=2))
         return
 
-    table = Table(title="Model Benchmark Comparison (Out-of-Sample)")
-    table.add_column("Model / Method", style="cyan")
-    table.add_column("MAPE (%)", justify="right")
-    table.add_column("MdAPE (%)", justify="right")
-    table.add_column("MAE ($)", justify="right")
-    table.add_column("R²", justify="right")
-    table.add_column("Within 10%", justify="right", style="green")
-
-    for name, m in [
+    benchmark_items = [
         ("Automated Comps", comps_metrics),
         ("Hedonic Spatial Ridge", hedonic_metrics),
         ("Spatial Gradient Boosting", gbm_metrics),
         ("Ensemble Model", ensemble_metrics),
-    ]:
-        table.add_row(
-            name,
-            f"{m.mape:.2f}%",
-            f"{m.mdape:.2f}%",
-            f"${m.mae:,.0f}",
-            f"{m.r2:.3f}",
-            f"{m.within_10_pct:.1f}%",
-        )
-
-    console.print(table)
+    ]
+    console.print(create_benchmark_table(benchmark_items))
 
 
 @cli.command(name="portfolio")
@@ -851,48 +733,13 @@ def portfolio_cmd(
         click.echo(json.dumps(summary_dict, indent=2))
         return
 
-    table = Table(title=f"Portfolio Assessment Summary ({len(port_props)} properties)", show_header=True)
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", justify="right", style="bold green")
-
-    table.add_row("Total Properties", str(summary.total_properties))
-    table.add_row("Total Estimated Value", f"${summary.total_estimated_value:,.2f}")
-    table.add_row("Mean Property Value", f"${summary.mean_estimated_value:,.2f}")
-    table.add_row("Median Property Value", f"${summary.median_estimated_value:,.2f}")
-    table.add_row("Average Confidence", f"{summary.average_confidence * 100:.1f}%")
-    table.add_row("High-Risk Count", f"[red]{summary.high_risk_count}[/red]" if summary.high_risk_count else "0")
-    table.add_row("Valuation Range", f"${summary.total_lower_bound:,.0f} - ${summary.total_upper_bound:,.0f}")
-    table.add_row("Portfolio Spread", f"{summary.portfolio_spread_pct:.1f}%")
-
-    console.print(table)
+    console.print(create_portfolio_summary_table(summary, len(port_props)))
 
     if summary.property_type_breakdown:
-        type_table = Table(title="Portfolio Breakdown by Property Type", show_header=True)
-        type_table.add_column("Property Type", style="cyan")
-        type_table.add_column("Count", justify="right")
-        type_table.add_column("Total Value", justify="right", style="green")
-        type_table.add_column("Mean Value", justify="right")
-        type_table.add_column("Mean Sqft", justify="right")
-
-        for ptype, stats in summary.property_type_breakdown.items():
-            type_table.add_row(
-                ptype,
-                str(stats["count"]),
-                f"${stats['total_value']:,.0f}",
-                f"${stats['mean_value']:,.0f}",
-                f"{stats['mean_sqft']:,.0f}",
-            )
-        console.print(type_table)
+        console.print(create_portfolio_type_breakdown_table(summary.property_type_breakdown))
 
     if stress_report:
-        stress_panel = (
-            f"[bold]Stress Shock:[/bold] {stress_shock:+.1f}%\n"
-            f"[bold]Baseline Total:[/bold] ${stress_report['baseline_total_value']:,.2f}\n"
-            f"[bold]Stressed Total:[/bold] [bold yellow]${stress_report['stressed_total_value']:,.2f}[/bold yellow]\n"
-            f"[bold]Value Delta:[/bold] [bold red]${stress_report['value_delta']:,.2f}[/bold red] "
-            f"({stress_report['percentage_change']:+.2f}%)"
-        )
-        console.print(Panel(stress_panel, title="Macroeconomic Stress Test Result", expand=False))
+        console.print(create_stress_test_panel(stress_report, stress_shock))
 
     if output:
         console.print(f"[dim]Assessment report saved to {output}[/dim]")
@@ -939,26 +786,7 @@ def submarket_cmd(
         click.echo(json.dumps(report, indent=2))
         return
 
-    table = Table(title=f"Market Overview & Submarkets ({report['submarket_count']} clusters)", show_header=True)
-    table.add_column("Submarket ID", style="cyan")
-    table.add_column("Properties", justify="right")
-    table.add_column("Median Price", justify="right", style="bold green")
-    table.add_column("Median $/Sqft", justify="right")
-    table.add_column("Price Range", justify="right", style="dim")
-    table.add_column("Volatility (%)", justify="right", style="yellow")
-
-    for sm in report["submarkets"][:30]:
-        price_range = f"${sm['min_price']:,.0f} - ${sm['max_price']:,.0f}"
-        table.add_row(
-            sm["submarket_id"],
-            str(sm["property_count"]),
-            f"${sm['median_price']:,.0f}",
-            f"${sm['median_price_per_sqft']:,.0f}",
-            price_range,
-            f"{sm['price_volatility_pct']:.1f}%",
-        )
-
-    console.print(table)
+    console.print(create_submarket_table(report, max_rows=30))
     if report["submarket_count"] > 30:
         console.print(f"[dim]Showing first 30 of {report['submarket_count']} submarkets.[/dim]")
     if output:

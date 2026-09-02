@@ -280,6 +280,9 @@ class TestProperty:
         assert p.id == "PROP-01"
         assert p.property_type == "single_family"
         assert p.price_per_sqft == 500.0
+        assert p.age(2026) == 26.0
+        assert p.effective_lot_size() == 5000.0
+        assert p.lot_sqft == 5000.0
 
         # Sqft = 0 or price = None -> price_per_sqft is None
         p_no_sqft = Property(
@@ -290,6 +293,8 @@ class TestProperty:
             sqft=0.0,
         )
         assert p_no_sqft.price_per_sqft is None
+        assert p_no_sqft.age() == 25.0
+        assert p_no_sqft.effective_lot_size() == 0.0
 
         p_no_price = Property(
             id="PROP-03",
@@ -299,6 +304,7 @@ class TestProperty:
             sqft=1500.0,
         )
         assert p_no_price.price_per_sqft is None
+        assert p_no_price.effective_lot_size() == 4500.0
 
     def test_negative_validations(self) -> None:
         """Test negative structural or price values raise ValueError."""

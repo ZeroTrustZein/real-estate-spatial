@@ -6,7 +6,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from real_estate_spatial.models.base import BaseValuationModel
+from real_estate_spatial.models.base import (
+    BaseValuationModel,
+    extract_structural_features,
+)
 from real_estate_spatial.spatial.coordinates import haversine_distance
 from real_estate_spatial.types import Property, ValuationResult
 
@@ -45,14 +48,12 @@ class HedonicSpatialRegression(BaseValuationModel):
         self.feature_stds: np.ndarray = np.array([])
 
     def _extract_feature_row(self, prop: Property) -> np.ndarray:
+        struct_feats = extract_structural_features(prop)
         c_lat = self.center_lat if self.center_lat is not None else prop.coordinates.lat
         c_lon = self.center_lon if self.center_lon is not None else prop.coordinates.lon
         dist_center = haversine_distance(
             prop.coordinates.lat, prop.coordinates.lon, c_lat, c_lon
         )
-
-        age = float(2026 - prop.year_built) if prop.year_built else 25.0
-        lot_size = prop.lot_size_sqft if prop.lot_size_sqft is not None else prop.sqft * 3.0
 
         lat = prop.coordinates.lat
         lon = prop.coordinates.lon
@@ -60,12 +61,12 @@ class HedonicSpatialRegression(BaseValuationModel):
         # Raw features without intercept (added during standardization)
         return np.array(
             [
-                prop.sqft,
-                (prop.sqft / 1000.0) ** 2,
-                float(prop.bedrooms),
-                float(prop.bathrooms),
-                age,
-                lot_size,
+                struct_feats["sqft"],
+                struct_feats["sqft_squared"],
+                struct_feats["bedrooms"],
+                struct_feats["bathrooms"],
+                struct_feats["age"],
+                struct_feats["lot_size_sqft"],
                 lat,
                 lon,
                 lat**2,

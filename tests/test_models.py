@@ -7,7 +7,10 @@ from typing import List
 import numpy as np
 import pytest
 
-from real_estate_spatial.models.base import BaseValuationModel
+from real_estate_spatial.models.base import (
+    BaseValuationModel,
+    extract_structural_features,
+)
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
 from real_estate_spatial.types import Coordinates, ModelMetrics, Property, ValuationResult
@@ -61,6 +64,26 @@ class TestModelMetrics:
         metrics = BaseValuationModel.compute_metrics(np.array([]), np.array([]))
         assert metrics.mape == 0.0
         assert metrics.r2 == 0.0
+
+    def test_extract_structural_features_helper(self) -> None:
+        """extract_structural_features extracts standardized dictionary features."""
+        p = Property(
+            id="P1",
+            address="123 Test St",
+            coordinates=Coordinates(lat=37.77, lon=-122.42),
+            sqft=2000.0,
+            bedrooms=4,
+            bathrooms=2.5,
+            lot_size_sqft=6000.0,
+            year_built=2006,
+        )
+        feats = extract_structural_features(p, ref_year=2026)
+        assert feats["sqft"] == 2000.0
+        assert feats["sqft_squared"] == (2000.0 / 1000.0) ** 2
+        assert feats["bedrooms"] == 4.0
+        assert feats["bathrooms"] == 2.5
+        assert feats["age"] == 20.0
+        assert feats["lot_size_sqft"] == 6000.0
 
 
 class TestHedonicSpatialRegression:
