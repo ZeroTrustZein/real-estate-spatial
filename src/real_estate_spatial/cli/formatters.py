@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple
 
 from rich.panel import Panel
 from rich.table import Table
@@ -41,9 +41,7 @@ def create_validation_summary_table(
     return table
 
 
-def create_validation_issues_table(
-    issues: Sequence[Any], max_rows: int = 15
-) -> Table:
+def create_validation_issues_table(issues: Sequence[Any], max_rows: int = 15) -> Table:
     """Format sample validation issues table."""
     table = Table(title="Validation Issues (Sample)", show_header=True)
     table.add_column("Property ID", style="cyan")
@@ -72,9 +70,7 @@ def create_spatial_outliers_table(
     return table
 
 
-def create_cleaning_report_table(
-    report: Any, data_name: str, output_name: str
-) -> Table:
+def create_cleaning_report_table(report: Any, data_name: str, output_name: str) -> Table:
     """Format dataset cleaning metrics table."""
     table = Table(
         title=f"Dataset Cleaning Report ({data_name} -> {output_name})",
@@ -99,9 +95,7 @@ def create_cleaning_report_table(
     return table
 
 
-def create_comps_table(
-    comps: Sequence[CompCandidate], radius_km: float
-) -> Table:
+def create_comps_table(comps: Sequence[CompCandidate], radius_km: float) -> Table:
     """Format top comparable sales table."""
     table = Table(title=f"Top {len(comps)} Comparable Properties (Radius: {radius_km} km)")
     table.add_column("Rank", justify="center", style="dim")
@@ -121,7 +115,7 @@ def create_comps_table(
             str(i),
             p.id,
             f"{c.distance_km:.2f} km",
-            f"{c.similarity_score*100:.1f}%",
+            f"{c.similarity_score * 100:.1f}%",
             specs,
             sale_str,
             adj_str,
@@ -153,9 +147,7 @@ def create_valuation_drivers_table(key_drivers: Dict[str, float]) -> Table:
     return table
 
 
-def create_batch_valuation_table(
-    results: Sequence[ValuationResult], max_rows: int = 50
-) -> Table:
+def create_batch_valuation_table(results: Sequence[ValuationResult], max_rows: int = 50) -> Table:
     """Format batch valuation summary table."""
     table = Table(
         title=f"Batch Valuation Results ({len(results)} properties)",
@@ -192,9 +184,7 @@ def create_training_metrics_table(metrics: ModelMetrics, method: str) -> Table:
     return table
 
 
-def create_benchmark_table(
-    metrics_items: Sequence[Tuple[str, ModelMetrics]]
-) -> Table:
+def create_benchmark_table(metrics_items: Sequence[Tuple[str, ModelMetrics]]) -> Table:
     """Format side-by-side model benchmark comparison table."""
     table = Table(title="Model Benchmark Comparison (Out-of-Sample)")
     table.add_column("Model / Method", style="cyan")
@@ -242,9 +232,7 @@ def create_portfolio_summary_table(summary: Any, property_count: int) -> Table:
     return table
 
 
-def create_portfolio_type_breakdown_table(
-    breakdown: Dict[str, Dict[str, Any]]
-) -> Table:
+def create_portfolio_type_breakdown_table(breakdown: Dict[str, Dict[str, Any]]) -> Table:
     """Format portfolio property type breakdown table."""
     type_table = Table(title="Portfolio Breakdown by Property Type", show_header=True)
     type_table.add_column("Property Type", style="cyan")
@@ -264,9 +252,7 @@ def create_portfolio_type_breakdown_table(
     return type_table
 
 
-def create_stress_test_panel(
-    stress_report: Dict[str, Any], stress_shock: float
-) -> Panel:
+def create_stress_test_panel(stress_report: Dict[str, Any], stress_shock: float) -> Panel:
     """Format macroeconomic stress test results panel."""
     stress_content = (
         f"[bold]Stress Shock:[/bold] {stress_shock:+.1f}%\n"
@@ -278,9 +264,7 @@ def create_stress_test_panel(
     return Panel(stress_content, title="Macroeconomic Stress Test Result", expand=False)
 
 
-def create_submarket_table(
-    report: Dict[str, Any], max_rows: int = 30
-) -> Table:
+def create_submarket_table(report: Dict[str, Any], max_rows: int = 30) -> Table:
     """Format submarket analytics summary table."""
     table = Table(
         title=f"Market Overview & Submarkets ({report['submarket_count']} clusters)",

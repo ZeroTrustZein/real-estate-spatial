@@ -5,12 +5,12 @@ from __future__ import annotations
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import numpy as np
 
 from real_estate_spatial.spatial.coordinates import haversine_distance
-from real_estate_spatial.types import Coordinates, Property
+from real_estate_spatial.types import Property
 
 
 @dataclass

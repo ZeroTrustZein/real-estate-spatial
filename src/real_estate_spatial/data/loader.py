@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from real_estate_spatial.types import Coordinates, Property
 
@@ -57,10 +57,14 @@ class PropertyDataLoader:
         with path.open("r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                lat_str = PropertyDataLoader._clean_str(row.get("lat")) or PropertyDataLoader._clean_str(row.get("latitude"))
+                lat_str = PropertyDataLoader._clean_str(
+                    row.get("lat")
+                ) or PropertyDataLoader._clean_str(row.get("latitude"))
                 lat = float(lat_str) if lat_str is not None else 0.0
 
-                lon_str = PropertyDataLoader._clean_str(row.get("lon")) or PropertyDataLoader._clean_str(row.get("longitude"))
+                lon_str = PropertyDataLoader._clean_str(
+                    row.get("lon")
+                ) or PropertyDataLoader._clean_str(row.get("longitude"))
                 lon = float(lon_str) if lon_str is not None else 0.0
 
                 price_str = PropertyDataLoader._clean_str(row.get("price"))
@@ -81,9 +85,13 @@ class PropertyDataLoader:
                 year_str = PropertyDataLoader._clean_str(row.get("year_built"))
                 year_built = int(float(year_str)) if year_str is not None else None
 
-                prop_type = PropertyDataLoader._clean_str(row.get("property_type")) or "single_family"
+                prop_type = (
+                    PropertyDataLoader._clean_str(row.get("property_type")) or "single_family"
+                )
                 sale_date = PropertyDataLoader._clean_str(row.get("sale_date"))
-                prop_id = PropertyDataLoader._clean_str(row.get("id")) or f"PROP-{len(properties)+1}"
+                prop_id = (
+                    PropertyDataLoader._clean_str(row.get("id")) or f"PROP-{len(properties) + 1}"
+                )
                 address = PropertyDataLoader._clean_str(row.get("address")) or ""
 
                 properties.append(
@@ -105,9 +113,7 @@ class PropertyDataLoader:
         return properties
 
     @staticmethod
-    def save_csv(
-        properties: Sequence[Property], filepath: Union[str, Path]
-    ) -> None:
+    def save_csv(properties: Sequence[Property], filepath: Union[str, Path]) -> None:
         """Save properties to a CSV file."""
         path = Path(filepath)
         path.parent.mkdir(parents=True, exist_ok=True)

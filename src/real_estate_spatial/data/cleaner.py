@@ -111,12 +111,8 @@ class DataCleaner:
         cleaned_props: List[Property] = []
         if self.impute_missing and filtered_props:
             # Determine median year_built
-            known_years = [
-                p.year_built for p in filtered_props if p.year_built is not None
-            ]
-            median_year = (
-                int(round(float(np.median(known_years)))) if known_years else 1990
-            )
+            known_years = [p.year_built for p in filtered_props if p.year_built is not None]
+            median_year = int(round(float(np.median(known_years)))) if known_years else 1990
 
             for p in filtered_props:
                 lot_imputed = False
@@ -126,17 +122,13 @@ class DataCleaner:
                 if new_lot_size is None or new_lot_size <= 0:
                     new_lot_size = round(p.sqft * self.default_lot_multiplier, 2)
                     lot_imputed = True
-                    imputed_fields["lot_size_sqft"] = (
-                        imputed_fields.get("lot_size_sqft", 0) + 1
-                    )
+                    imputed_fields["lot_size_sqft"] = imputed_fields.get("lot_size_sqft", 0) + 1
 
                 new_year_built = p.year_built
                 if new_year_built is None:
                     new_year_built = median_year
                     year_imputed = True
-                    imputed_fields["year_built"] = (
-                        imputed_fields.get("year_built", 0) + 1
-                    )
+                    imputed_fields["year_built"] = imputed_fields.get("year_built", 0) + 1
 
                 if lot_imputed or year_imputed:
                     cleaned_props.append(

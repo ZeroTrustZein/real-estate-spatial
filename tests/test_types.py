@@ -328,44 +328,52 @@ class TestProperty:
     def test_property_from_dict_variants(self) -> None:
         """Test parsing Property from various dictionary structures."""
         # Nested coordinates dict
-        p1 = Property.from_dict({
-            "id": "P1",
-            "address": "123 Main St",
-            "coordinates": {"lat": 37.7749, "lon": -122.4194},
-            "price": "750000",
-            "sqft": "1500",
-            "bedrooms": "3",
-            "bathrooms": "2.0",
-        })
+        p1 = Property.from_dict(
+            {
+                "id": "P1",
+                "address": "123 Main St",
+                "coordinates": {"lat": 37.7749, "lon": -122.4194},
+                "price": "750000",
+                "sqft": "1500",
+                "bedrooms": "3",
+                "bathrooms": "2.0",
+            }
+        )
         assert p1.coordinates.lat == 37.7749
         assert p1.price == 750000.0
         assert p1.sqft == 1500.0
         assert p1.bedrooms == 3
 
         # Flat coordinates (lat, lon)
-        p2 = Property.from_dict({
-            "id": "P2",
-            "address": "456 Market St",
-            "lat": 37.7749,
-            "lon": -122.4194,
-        })
+        p2 = Property.from_dict(
+            {
+                "id": "P2",
+                "address": "456 Market St",
+                "lat": 37.7749,
+                "lon": -122.4194,
+            }
+        )
         assert p2.coordinates == Coordinates(lat=37.7749, lon=-122.4194)
 
         # Flat coordinates (latitude, longitude)
-        p3 = Property.from_dict({
-            "id": "P3",
-            "address": "789 Mission St",
-            "latitude": 37.7749,
-            "longitude": -122.4194,
-        })
+        p3 = Property.from_dict(
+            {
+                "id": "P3",
+                "address": "789 Mission St",
+                "latitude": 37.7749,
+                "longitude": -122.4194,
+            }
+        )
         assert p3.coordinates == Coordinates(lat=37.7749, lon=-122.4194)
 
         # Coordinate tuple / sequence
-        p4 = Property.from_dict({
-            "id": "P4",
-            "address": "101 Howard St",
-            "coordinates": [37.7749, -122.4194],
-        })
+        p4 = Property.from_dict(
+            {
+                "id": "P4",
+                "address": "101 Howard St",
+                "coordinates": [37.7749, -122.4194],
+            }
+        )
         assert p4.coordinates == Coordinates(lat=37.7749, lon=-122.4194)
 
     def test_to_geojson_feature(self) -> None:

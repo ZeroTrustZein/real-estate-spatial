@@ -92,9 +92,7 @@ class CompAdjustmentCalculator:
         if sale_d is not None and sale_d < ref_d:
             days_diff = (ref_d - sale_d).days
             years_diff = days_diff / 365.25
-            time_adj = base_price * (
-                (1.0 + self.annual_appreciation_rate) ** years_diff - 1.0
-            )
+            time_adj = base_price * ((1.0 + self.annual_appreciation_rate) ** years_diff - 1.0)
             adjustments["market_time"] = float(time_adj)
         else:
             adjustments["market_time"] = 0.0

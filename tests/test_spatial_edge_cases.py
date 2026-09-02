@@ -115,7 +115,13 @@ class TestSpatialIndexEdgeCases:
         """Handling multiple distinct properties (e.g. condo units) sharing identical lat/lon."""
         coord = Coordinates(lat=37.7800, lon=-122.4000)
         units = [
-            Property(id=f"CONDO-{i}", address=f"100 Unit #{i}", coordinates=coord, price=500000.0 + i * 10000, sqft=800.0)
+            Property(
+                id=f"CONDO-{i}",
+                address=f"100 Unit #{i}",
+                coordinates=coord,
+                price=500000.0 + i * 10000,
+                sqft=800.0,
+            )
             for i in range(10)
         ]
         index = KDTreeIndex(units)
@@ -156,8 +162,12 @@ class TestSpatialFeaturesAndExtractor:
         extractor = SpatialFeatureExtractor()
         center = sample_properties[0].coordinates
 
-        density_close = extractor.local_density(center, sample_properties, radius_km=0.5, exclude_id=sample_properties[0].id)
-        density_wide = extractor.local_density(center, sample_properties, radius_km=10.0, exclude_id=sample_properties[0].id)
+        density_close = extractor.local_density(
+            center, sample_properties, radius_km=0.5, exclude_id=sample_properties[0].id
+        )
+        density_wide = extractor.local_density(
+            center, sample_properties, radius_km=10.0, exclude_id=sample_properties[0].id
+        )
 
         assert 0 <= density_close <= len(sample_properties) - 1
         assert density_close <= density_wide
@@ -211,7 +221,9 @@ class TestSpatialPersistenceAndCacheEdgeCases:
         assert cache.hits == 0
         assert cache.misses == 0
 
-    def test_persistence_serializer_roundtrip(self, tmp_path: Path, sample_dataset: List[Property]) -> None:
+    def test_persistence_serializer_roundtrip(
+        self, tmp_path: Path, sample_dataset: List[Property]
+    ) -> None:
         """Verify KDTree and Grid indices persist and reload cleanly in JSON and Binary formats."""
         kdtree = KDTreeIndex(sample_dataset)
         grid = GridIndex(sample_dataset)

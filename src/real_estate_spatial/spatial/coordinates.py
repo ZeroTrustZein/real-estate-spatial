@@ -46,10 +46,7 @@ def haversine_distance_vectorized(
     delta_phi = np.radians(lats - lat)
     delta_lambda = np.radians(lons - lon)
 
-    a = (
-        np.sin(delta_phi / 2.0) ** 2
-        + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2.0) ** 2
-    )
+    a = np.sin(delta_phi / 2.0) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2.0) ** 2
     a = np.clip(a, 0.0, 1.0)
     c = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     return radius_km * c

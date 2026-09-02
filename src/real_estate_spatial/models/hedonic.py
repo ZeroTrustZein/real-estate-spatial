@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 
@@ -51,9 +51,7 @@ class HedonicSpatialRegression(BaseValuationModel):
         struct_feats = extract_structural_features(prop)
         c_lat = self.center_lat if self.center_lat is not None else prop.coordinates.lat
         c_lon = self.center_lon if self.center_lon is not None else prop.coordinates.lon
-        dist_center = haversine_distance(
-            prop.coordinates.lat, prop.coordinates.lon, c_lat, c_lon
-        )
+        dist_center = haversine_distance(prop.coordinates.lat, prop.coordinates.lon, c_lat, c_lon)
 
         lat = prop.coordinates.lat
         lon = prop.coordinates.lon
@@ -77,9 +75,7 @@ class HedonicSpatialRegression(BaseValuationModel):
             dtype=np.float64,
         )
 
-    def _build_design_matrix(
-        self, properties: Sequence[Property]
-    ) -> np.ndarray:
+    def _build_design_matrix(self, properties: Sequence[Property]) -> np.ndarray:
         rows = [self._extract_feature_row(p) for p in properties]
         return np.vstack(rows) if rows else np.empty((0, 12))
 
@@ -93,12 +89,8 @@ class HedonicSpatialRegression(BaseValuationModel):
 
         # Infer center if not provided
         if self.center_lat is None or self.center_lon is None:
-            self.center_lat = float(
-                np.mean([p.coordinates.lat for p in valid_props])
-            )
-            self.center_lon = float(
-                np.mean([p.coordinates.lon for p in valid_props])
-            )
+            self.center_lat = float(np.mean([p.coordinates.lat for p in valid_props]))
+            self.center_lon = float(np.mean([p.coordinates.lon for p in valid_props]))
 
         X_raw = self._build_design_matrix(valid_props)
         y = np.array([p.price for p in valid_props], dtype=np.float64)

@@ -144,7 +144,9 @@ class TestHedonicSpatialRegression:
 
         assert norm_small > norm_large
 
-    def test_errors_on_unfitted_or_insufficient_data(self, sample_properties: List[Property]) -> None:
+    def test_errors_on_unfitted_or_insufficient_data(
+        self, sample_properties: List[Property]
+    ) -> None:
         """Predicting before fit raises RuntimeError, fitting on <3 samples raises ValueError."""
         model = HedonicSpatialRegression()
         with pytest.raises(RuntimeError):
@@ -195,11 +197,15 @@ class TestSpatialGradientBoostingModel:
 
     def test_predict_empty_list(self, sample_dataset: List[Property]) -> None:
         """Predicting an empty list returns an empty numpy array."""
-        model = SpatialGradientBoostingModel(n_estimators=5, use_xgboost=False).fit(sample_dataset[:20])
+        model = SpatialGradientBoostingModel(n_estimators=5, use_xgboost=False).fit(
+            sample_dataset[:20]
+        )
         empty_preds = model.predict([])
         assert len(empty_preds) == 0
 
-    def test_errors_on_unfitted_or_insufficient_samples(self, sample_properties: List[Property]) -> None:
+    def test_errors_on_unfitted_or_insufficient_samples(
+        self, sample_properties: List[Property]
+    ) -> None:
         """Predicting before fit raises RuntimeError; fitting on <5 samples raises ValueError."""
         model = SpatialGradientBoostingModel()
         with pytest.raises(RuntimeError):

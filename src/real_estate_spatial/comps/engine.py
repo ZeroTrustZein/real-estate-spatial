@@ -157,9 +157,7 @@ class CompsEngine:
         estimated_val = float(np.sum(adjusted_prices * weights_arr))
 
         # Variance and confidence estimation
-        weighted_var = float(
-            np.sum(weights_arr * ((adjusted_prices - estimated_val) ** 2))
-        )
+        weighted_var = float(np.sum(weights_arr * ((adjusted_prices - estimated_val) ** 2)))
         std_dev = math.sqrt(weighted_var) if weighted_var > 0 else (estimated_val * 0.05)
 
         avg_similarity = float(np.mean([c.similarity_score for c in comps]))

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 from datetime import date, timedelta
 from typing import List, Optional
@@ -31,7 +30,13 @@ class SyntheticRealEstateGenerator:
         self.cbd_gradient = cbd_gradient
         self.seed = random_seed if random_seed is not None else seed
 
-    def generate(self, n_samples: int = 500, seed: Optional[int] = None, n_properties: Optional[int] = None, noise_level: float = 0.06) -> List[Property]:
+    def generate(
+        self,
+        n_samples: int = 500,
+        seed: Optional[int] = None,
+        n_properties: Optional[int] = None,
+        noise_level: float = 0.06,
+    ) -> List[Property]:
         """Generate n realistic synthetic property records with spatial pricing effects."""
         count = n_properties if n_properties is not None else n_samples
         active_seed = seed if seed is not None else self.seed
@@ -42,9 +47,24 @@ class SyntheticRealEstateGenerator:
         # Neighborhood clusters with premium factors
         clusters = [
             {"lat": self.center_lat, "lon": self.center_lon, "premium": 1.3, "weight": 0.3},
-            {"lat": self.center_lat + 0.04, "lon": self.center_lon - 0.05, "premium": 1.15, "weight": 0.25},
-            {"lat": self.center_lat - 0.05, "lon": self.center_lon + 0.03, "premium": 0.85, "weight": 0.25},
-            {"lat": self.center_lat + 0.06, "lon": self.center_lon + 0.06, "premium": 0.95, "weight": 0.20},
+            {
+                "lat": self.center_lat + 0.04,
+                "lon": self.center_lon - 0.05,
+                "premium": 1.15,
+                "weight": 0.25,
+            },
+            {
+                "lat": self.center_lat - 0.05,
+                "lon": self.center_lon + 0.03,
+                "premium": 0.85,
+                "weight": 0.25,
+            },
+            {
+                "lat": self.center_lat + 0.06,
+                "lon": self.center_lon + 0.06,
+                "premium": 0.95,
+                "weight": 0.20,
+            },
         ]
         cluster_weights = [c["weight"] for c in clusters]
 
@@ -52,9 +72,21 @@ class SyntheticRealEstateGenerator:
         today = date.today()
 
         street_names = [
-            "Market St", "Mission St", "Pine St", "Bush St", "California St",
-            "Valencia St", "Folsom St", "Howard St", "Harrison St", "Geary Blvd",
-            "Divisadero St", "Haight St", "Castro St", "Fillmore St", "Columbus Ave"
+            "Market St",
+            "Mission St",
+            "Pine St",
+            "Bush St",
+            "California St",
+            "Valencia St",
+            "Folsom St",
+            "Howard St",
+            "Harrison St",
+            "Geary Blvd",
+            "Divisadero St",
+            "Haight St",
+            "Castro St",
+            "Fillmore St",
+            "Columbus Ave",
         ]
 
         for i in range(count):
@@ -68,7 +100,9 @@ class SyntheticRealEstateGenerator:
             lon = max(-179.9, min(179.9, lon))
 
             # Property attributes
-            bedrooms = int(np.clip(np.random.choice([1, 2, 3, 4, 5], p=[0.15, 0.35, 0.30, 0.15, 0.05]), 1, 6))
+            bedrooms = int(
+                np.clip(np.random.choice([1, 2, 3, 4, 5], p=[0.15, 0.35, 0.30, 0.15, 0.05]), 1, 6)
+            )
             bathrooms = float(bedrooms * 0.5 + np.random.choice([0.5, 1.0, 1.5]))
             bathrooms = round(np.clip(bathrooms, 1.0, 5.0) * 2) / 2.0
 
@@ -86,10 +120,7 @@ class SyntheticRealEstateGenerator:
             dist_cbd_km = haversine_distance(lat, lon, self.center_lat, self.center_lon)
 
             # Compute realistic market price
-            ppsqft = (
-                self.base_price_sqft
-                + self.cbd_gradient * dist_cbd_km
-            ) * cluster["premium"]
+            ppsqft = (self.base_price_sqft + self.cbd_gradient * dist_cbd_km) * cluster["premium"]
             ppsqft = max(200.0, ppsqft)
 
             # Adjust for age and bathrooms
@@ -112,7 +143,7 @@ class SyntheticRealEstateGenerator:
             address = f"{address_num} {street}"
 
             prop = Property(
-                id=f"PROP-{i+1:05d}",
+                id=f"PROP-{i + 1:05d}",
                 address=address,
                 coordinates=Coordinates(lat=round(lat, 6), lon=round(lon, 6)),
                 price=float(price),

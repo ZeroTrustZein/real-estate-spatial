@@ -7,14 +7,13 @@ from typing import List
 import numpy as np
 import pytest
 
-from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.comps.scorer import SimilarityScorer
 from real_estate_spatial.models.base import BaseValuationModel
 from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
-from real_estate_spatial.types import Coordinates, ModelMetrics, Property, ValuationResult
+from real_estate_spatial.types import Coordinates, Property, ValuationResult
 
 
 class TestModelMetricsEdgeCases:
@@ -79,7 +78,9 @@ class TestHedonicRegressionEdgeCases:
 class TestSpatialGBMEdgeCases:
     """Edge cases for Spatial Gradient Boosting Model."""
 
-    def test_hyperparameter_tuning_depth_and_estimators(self, sample_dataset: List[Property]) -> None:
+    def test_hyperparameter_tuning_depth_and_estimators(
+        self, sample_dataset: List[Property]
+    ) -> None:
         """Fitting with varying tree depths and estimator counts."""
         train = sample_dataset[:35]
         test = sample_dataset[35:]

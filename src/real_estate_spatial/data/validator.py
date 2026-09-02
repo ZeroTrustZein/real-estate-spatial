@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -335,7 +334,10 @@ class DataValidator:
                         severity="error",
                     )
                 )
-            elif prop.lot_size_sqft < prop.sqft and prop_type_val in ("single_family", "multi_family"):
+            elif prop.lot_size_sqft < prop.sqft and prop_type_val in (
+                "single_family",
+                "multi_family",
+            ):
                 issues.append(
                     ValidationIssue(
                         property_id=prop.id,
@@ -394,7 +396,11 @@ class DataValidator:
             raise ValueError(
                 f"Dataset validation failed with {invalid_records} invalid records: "
                 + "; ".join(error_details[:5])
-                + (f" ... and {len(error_details) - 5} more errors" if len(error_details) > 5 else "")
+                + (
+                    f" ... and {len(error_details) - 5} more errors"
+                    if len(error_details) > 5
+                    else ""
+                )
             )
 
         return ValidationResult(
@@ -420,7 +426,9 @@ class DataValidator:
 
         method_clean = method.lower().strip()
         if method_clean not in ("zscore", "iqr"):
-            raise ValueError(f"Unknown outlier detection method: '{method}'. Supported methods: 'zscore', 'iqr'")
+            raise ValueError(
+                f"Unknown outlier detection method: '{method}'. Supported methods: 'zscore', 'iqr'"
+            )
 
         index = KDTreeIndex(priced_props)
         outliers: List[Tuple[Property, float, str]] = []

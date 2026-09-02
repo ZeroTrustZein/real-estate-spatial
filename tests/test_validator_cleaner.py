@@ -13,7 +13,7 @@ from real_estate_spatial.data import (
     ValidationIssue,
     ValidationResult,
 )
-from real_estate_spatial.types import Coordinates, Property, PropertyType
+from real_estate_spatial.types import Coordinates, Property
 
 
 @pytest.fixture
@@ -163,7 +163,9 @@ class TestDataValidator:
         )
         issues = validator.validate_property(p)
         assert any(i.rule == "year_built_out_of_range" and i.severity == "error" for i in issues)
-        assert any(i.rule == "lot_size_smaller_than_sqft" and i.severity == "warning" for i in issues)
+        assert any(
+            i.rule == "lot_size_smaller_than_sqft" and i.severity == "warning" for i in issues
+        )
 
     def test_validate_dataset_success_and_raise_on_error(
         self, clean_properties: List[Property]
@@ -223,9 +225,7 @@ class TestDataValidator:
         assert any(p.id == "P-OUTLIER" for p, score, reason in outliers_z)
 
         # IQR method
-        outliers_iqr = validator.detect_spatial_outliers(
-            dataset, k_neighbors=10, method="iqr"
-        )
+        outliers_iqr = validator.detect_spatial_outliers(dataset, k_neighbors=10, method="iqr")
         assert len(outliers_iqr) >= 1
         assert any(p.id == "P-OUTLIER" for p, score, reason in outliers_iqr)
 

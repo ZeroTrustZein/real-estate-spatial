@@ -21,7 +21,7 @@ from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
 
 def _unpack_bbox(
-    bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]
+    bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]],
 ) -> Tuple[float, float, float, float]:
     if isinstance(bbox, BoundingBox):
         return (bbox.min_lat, bbox.min_lon, bbox.max_lat, bbox.max_lon)
@@ -39,16 +39,12 @@ class SpatialIndex(ABC):
         ...
 
     @abstractmethod
-    def query_radius(
-        self, coord: Coordinates, radius_km: float
-    ) -> List[Property]:
+    def query_radius(self, coord: Coordinates, radius_km: float) -> List[Property]:
         """Find all properties within radius_km of coordinate."""
         ...
 
     @abstractmethod
-    def query_knn(
-        self, coord: Coordinates, k: int
-    ) -> List[Tuple[Property, float]]:
+    def query_knn(self, coord: Coordinates, k: int) -> List[Tuple[Property, float]]:
         """Find k nearest properties and their distances in km."""
         ...
 
@@ -164,9 +160,7 @@ class KDTreeIndex(SpatialIndex):
     def size(self) -> int:
         return len(self._properties)
 
-    def query_radius(
-        self, coord: Coordinates, radius_km: float
-    ) -> List[Property]:
+    def query_radius(self, coord: Coordinates, radius_km: float) -> List[Property]:
         """Find properties within radius_km."""
         if self._root is None or radius_km < 0:
             return []
@@ -213,22 +207,22 @@ class KDTreeIndex(SpatialIndex):
 
         results: List[Property] = []
         for prop in self._properties:
-            if point_in_bbox(prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)):
+            if point_in_bbox(
+                prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)
+            ):
                 results.append(prop)
         return results
 
-    def query_knn(
-        self, coord: Coordinates, k: int
-    ) -> List[Tuple[Property, float]]:
+    def query_knn(self, coord: Coordinates, k: int) -> List[Tuple[Property, float]]:
         """Find k nearest properties and distance in km."""
         if self._root is None or k <= 0:
             return []
 
         if len(self._properties) <= k:
-            distances = haversine_distance_vectorized(
-                coord.lat, coord.lon, self._lats, self._lons
-            )
-            paired = [(self._properties[i], float(distances[i])) for i in range(len(self._properties))]
+            distances = haversine_distance_vectorized(coord.lat, coord.lon, self._lats, self._lons)
+            paired = [
+                (self._properties[i], float(distances[i])) for i in range(len(self._properties))
+            ]
             paired.sort(key=lambda x: x[1])
             return paired
 
@@ -308,9 +302,7 @@ class GridIndex(SpatialIndex):
     def size(self) -> int:
         return len(self._properties)
 
-    def query_radius(
-        self, coord: Coordinates, radius_km: float
-    ) -> List[Property]:
+    def query_radius(self, coord: Coordinates, radius_km: float) -> List[Property]:
         """Find properties within radius_km using bounding box grid search."""
         if not self._properties or radius_km < 0:
             return []
@@ -357,13 +349,13 @@ class GridIndex(SpatialIndex):
 
         results: List[Property] = []
         for prop in candidates:
-            if point_in_bbox(prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)):
+            if point_in_bbox(
+                prop.coordinates.lat, prop.coordinates.lon, (min_lat, min_lon, max_lat, max_lon)
+            ):
                 results.append(prop)
         return results
 
-    def query_knn(
-        self, coord: Coordinates, k: int
-    ) -> List[Tuple[Property, float]]:
+    def query_knn(self, coord: Coordinates, k: int) -> List[Tuple[Property, float]]:
         """Find k nearest properties and their distances in km."""
         if not self._properties or k <= 0:
             return []
@@ -384,9 +376,7 @@ class GridIndex(SpatialIndex):
         scored = [
             (
                 p,
-                haversine_distance(
-                    coord.lat, coord.lon, p.coordinates.lat, p.coordinates.lon
-                ),
+                haversine_distance(coord.lat, coord.lon, p.coordinates.lat, p.coordinates.lon),
             )
             for p in neighbors
         ]

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
 import pytest
 from click.testing import CliRunner
 
@@ -21,11 +20,10 @@ from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
 from real_estate_spatial.pipeline.orchestrator import ValuationOrchestrator
-from real_estate_spatial.spatial.coordinates import haversine_distance
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
-from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex
+from real_estate_spatial.spatial.index import KDTreeIndex
 from real_estate_spatial.spatial.persistence import SpatialIndexSerializer
-from real_estate_spatial.types import Coordinates, Property, ValuationResult
+from real_estate_spatial.types import Coordinates, ValuationResult
 
 
 class TestEndToEndValuationPipeline:
@@ -136,7 +134,9 @@ class TestEndToEndValuationPipeline:
             shock_pct=-15.0,
             spatial_hotspots=[(Coordinates(lat=37.7749, lon=-122.4194), 2.0, -5.0)],
         )
-        assert stress_report["baseline_total_value"] == pytest.approx(portfolio_summary.total_estimated_value, abs=1.0)
+        assert stress_report["baseline_total_value"] == pytest.approx(
+            portfolio_summary.total_estimated_value, abs=1.0
+        )
         assert stress_report["stressed_total_value"] < portfolio_summary.total_estimated_value
         assert stress_report["general_shock_pct"] == -15.0
 

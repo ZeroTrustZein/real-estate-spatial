@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from real_estate_spatial.cli.main import cli
@@ -46,7 +45,9 @@ def test_cli_generate_formats_and_json(tmp_path: Path) -> None:
 
     # CSV output
     csv_file = tmp_path / "data.csv"
-    res_csv = runner.invoke(cli, ["generate", "-n", "25", "-o", str(csv_file), "--radius-km", "8.0"])
+    res_csv = runner.invoke(
+        cli, ["generate", "-n", "25", "-o", str(csv_file), "--radius-km", "8.0"]
+    )
     assert res_csv.exit_code == 0
     assert csv_file.exists()
 
@@ -60,7 +61,18 @@ def test_cli_generate_formats_and_json(tmp_path: Path) -> None:
     json_file = tmp_path / "data.json"
     res_json = runner.invoke(
         cli,
-        ["generate", "-n", "30", "-o", str(json_file), "--lat", "37.77", "--lon", "-122.42", "--json"],
+        [
+            "generate",
+            "-n",
+            "30",
+            "-o",
+            str(json_file),
+            "--lat",
+            "37.77",
+            "--lon",
+            "-122.42",
+            "--json",
+        ],
     )
     assert res_json.exit_code == 0
     assert json_file.exists()
@@ -80,9 +92,7 @@ def test_cli_validate(tmp_path: Path) -> None:
     assert "Dataset Validation Summary" in res.output
 
     # Validate with --json and --no-outliers
-    res_json = runner.invoke(
-        cli, ["validate", "-d", str(data_file), "--no-outliers", "--json"]
-    )
+    res_json = runner.invoke(cli, ["validate", "-d", str(data_file), "--no-outliers", "--json"])
     assert res_json.exit_code == 0
     data = json.loads(res_json.output)
     assert "total_records" in data

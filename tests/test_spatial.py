@@ -274,13 +274,19 @@ class TestSpatialFeatureExtractor:
         extractor = SpatialFeatureExtractor()
         target = Coordinates(lat=37.7749, lon=-122.4194)
 
-        lag_1 = extractor.spatial_lag(target, sample_properties, value_attr="price", k=3, decay_power=1.0)
-        lag_2 = extractor.spatial_lag(target, sample_properties, value_attr="price", k=3, decay_power=2.0)
+        lag_1 = extractor.spatial_lag(
+            target, sample_properties, value_attr="price", k=3, decay_power=1.0
+        )
+        lag_2 = extractor.spatial_lag(
+            target, sample_properties, value_attr="price", k=3, decay_power=2.0
+        )
 
         assert lag_1 > 0.0
         assert lag_2 > 0.0
 
-    def test_spatial_lag_exclude_id_prevents_leakage(self, sample_properties: List[Property]) -> None:
+    def test_spatial_lag_exclude_id_prevents_leakage(
+        self, sample_properties: List[Property]
+    ) -> None:
         """exclude_id must prevent a property from including its own price in spatial lag."""
         extractor = SpatialFeatureExtractor()
         subject = sample_properties[0]
@@ -312,14 +318,18 @@ class TestSpatialFeatureExtractor:
             price=None,
         )
         assert extractor.spatial_lag(target, [prop_no_price], value_attr="price") == 0.0
-        assert extractor.spatial_lag(target, [prop_no_price], value_attr="non_existent_field") == 0.0
+        assert (
+            extractor.spatial_lag(target, [prop_no_price], value_attr="non_existent_field") == 0.0
+        )
 
     def test_local_density_and_exclude_id(self, sample_properties: List[Property]) -> None:
         """Local density counts properties within radius and respects exclude_id."""
         extractor = SpatialFeatureExtractor()
         subject = sample_properties[0]
 
-        density_total = extractor.local_density(subject.coordinates, sample_properties, radius_km=1.0)
+        density_total = extractor.local_density(
+            subject.coordinates, sample_properties, radius_km=1.0
+        )
         density_excluded = extractor.local_density(
             subject.coordinates, sample_properties, radius_km=1.0, exclude_id=subject.id
         )
@@ -544,4 +554,3 @@ class TestSpatialQueryCache:
         assert cache.hits == 0
         assert cache.misses == 0
         assert cache.hit_rate == 0.0
-

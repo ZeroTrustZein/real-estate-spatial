@@ -1,12 +1,11 @@
 """Tests for portfolio assessment and submarket spatial analytics."""
 
 import math
+
 import pytest
-import numpy as np
 
 from real_estate_spatial.analytics.portfolio import (
     PortfolioAssessor,
-    PortfolioRiskSummary,
 )
 from real_estate_spatial.analytics.submarket import (
     SubmarketAnalyzer,
@@ -58,7 +57,10 @@ class TestPortfolioAssessor:
         assert summary.high_risk_count > 0
         assert len(summary.high_risk_property_ids) == summary.high_risk_count
         assert summary.portfolio_spread_pct > 0
-        assert "single_family" in summary.property_type_breakdown or len(summary.property_type_breakdown) > 0
+        assert (
+            "single_family" in summary.property_type_breakdown
+            or len(summary.property_type_breakdown) > 0
+        )
 
         summary_dict = summary.to_dict()
         assert "total_estimated_value" in summary_dict
@@ -98,9 +100,7 @@ class TestPortfolioAssessor:
             sample_portfolio,
             valuation_results=fake_results,
             shock_pct=-15.0,
-            spatial_hotspots=[
-                (Coordinates(37.7749, -122.4194), 5.0, -10.0)
-            ],
+            spatial_hotspots=[(Coordinates(37.7749, -122.4194), 5.0, -10.0)],
         )
 
         assert stress_res["general_shock_pct"] == -15.0

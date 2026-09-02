@@ -60,9 +60,7 @@ class ValuationOrchestrator:
 
         # Fit ML Ensemble (Hedonic + Spatial GBM)
         if len(self._properties) >= 5:
-            self.ensemble_model.fit(
-                self._properties, validation_split=validation_split
-            )
+            self.ensemble_model.fit(self._properties, validation_split=validation_split)
 
         self.is_fitted = True
         return self
@@ -101,11 +99,12 @@ class ValuationOrchestrator:
                         w_comps = max(0.1, comps_res.confidence_score)
                         w_ens = max(0.1, ens_res.confidence_score)
                         tot = w_comps + w_ens
-                        blended_val = (
-                            (w_comps / tot) * comps_res.estimated_value
-                            + (w_ens / tot) * ens_res.estimated_value
+                        blended_val = (w_comps / tot) * comps_res.estimated_value + (
+                            w_ens / tot
+                        ) * ens_res.estimated_value
+                        blended_conf = min(
+                            0.98, max(comps_res.confidence_score, ens_res.confidence_score)
                         )
-                        blended_conf = min(0.98, max(comps_res.confidence_score, ens_res.confidence_score))
                         margin = max(0.04, (1.0 - blended_conf) * 0.22)
 
                         merged_contribs = dict(ens_res.feature_contributions)
@@ -143,12 +142,12 @@ class ValuationOrchestrator:
                 if comps:
                     res.comps_used = comps
                 return res
-            return self.value_property(prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km)
+            return self.value_property(
+                prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km
+            )
 
         elif strat == "comps":
-            return self.comps_engine.value(
-                prop, max_comps=max_comps, max_radius_km=max_radius_km
-            )
+            return self.comps_engine.value(prop, max_comps=max_comps, max_radius_km=max_radius_km)
 
         elif strat == "hedonic":
             hedonic = next(
@@ -160,11 +159,17 @@ class ValuationOrchestrator:
                 if comps:
                     res.comps_used = comps
                 return res
-            return self.value_property(prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km)
+            return self.value_property(
+                prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km
+            )
 
         elif strat == "gbm":
             gbm = next(
-                (m for m in self.ensemble_model.models if isinstance(m, SpatialGradientBoostingModel)),
+                (
+                    m
+                    for m in self.ensemble_model.models
+                    if isinstance(m, SpatialGradientBoostingModel)
+                ),
                 None,
             )
             if gbm and gbm.is_fitted:
@@ -172,7 +177,9 @@ class ValuationOrchestrator:
                 if comps:
                     res.comps_used = comps
                 return res
-            return self.value_property(prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km)
+            return self.value_property(
+                prop, strategy="comps", max_comps=max_comps, max_radius_km=max_radius_km
+            )
 
         elif strat == "heuristic":
             return self._heuristic_fallback(prop)

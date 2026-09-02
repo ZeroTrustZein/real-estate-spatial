@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
 import pytest
 
 from real_estate_spatial.pipeline.orchestrator import ValuationOrchestrator
-from real_estate_spatial.types import CompCandidate, Coordinates, Property, ValuationResult
+from real_estate_spatial.types import Property, ValuationResult
 
 
 class TestValuationOrchestrator:
@@ -50,9 +49,7 @@ class TestValuationOrchestrator:
             "spatial_comparables_weighted_average",
         )
 
-    def test_value_property_explicit_strategies(
-        self, sample_dataset: List[Property]
-    ) -> None:
+    def test_value_property_explicit_strategies(self, sample_dataset: List[Property]) -> None:
         """Verify explicit valuation strategies (ensemble, comps, hedonic, gbm, heuristic)."""
         orchestrator = ValuationOrchestrator().fit_pipeline(sample_dataset[:40])
         target = sample_dataset[42]
@@ -64,7 +61,11 @@ class TestValuationOrchestrator:
 
         # Comps strategy
         res_comps = orchestrator.value_property(target, strategy="comps")
-        assert "comps" in res_comps.methodology or "comparables" in res_comps.methodology or "heuristic" in res_comps.methodology
+        assert (
+            "comps" in res_comps.methodology
+            or "comparables" in res_comps.methodology
+            or "heuristic" in res_comps.methodology
+        )
         assert res_comps.estimated_value > 0.0
 
         # Hedonic strategy

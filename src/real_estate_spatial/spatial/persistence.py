@@ -22,7 +22,9 @@ def _resolve_format(path: Path, format: Optional[str] = None, allow_inference: b
         elif fmt in ("json", "geojson"):
             return "json"
         else:
-            raise ValueError(f"Unsupported format: {format}. Supported formats are 'json' and 'binary'")
+            raise ValueError(
+                f"Unsupported format: {format}. Supported formats are 'json' and 'binary'"
+            )
 
     if allow_inference:
         ext = path.suffix.lower()
@@ -133,10 +135,7 @@ class SpatialIndexSerializer:
         index_type = data.get("index_type", "kdtree").lower()
         params = data.get("params", {})
         props_raw = data.get("properties", [])
-        props = [
-            p if isinstance(p, Property) else Property.from_dict(p)
-            for p in props_raw
-        ]
+        props = [p if isinstance(p, Property) else Property.from_dict(p) for p in props_raw]
         if index_type == "grid":
             cell_size = float(params.get("cell_size_deg", 0.05))
             return GridIndex(props, cell_size_deg=cell_size)
@@ -175,10 +174,7 @@ class SpatialIndexSerializer:
             data = data["properties"]
         if not isinstance(data, list):
             raise ValueError(f"Expected list of properties, got {type(data)}")
-        return [
-            p if isinstance(p, Property) else Property.from_dict(p)
-            for p in data
-        ]
+        return [p if isinstance(p, Property) else Property.from_dict(p) for p in data]
 
 
 class SpatialQueryCache:
@@ -232,9 +228,7 @@ class SpatialQueryCache:
         self._hits = 0
         self._misses = 0
 
-    def get_knn(
-        self, coord: Coordinates, k: int
-    ) -> Optional[List[Tuple[Property, float]]]:
+    def get_knn(self, coord: Coordinates, k: int) -> Optional[List[Tuple[Property, float]]]:
         """Retrieve cached k-nearest neighbor query results."""
         key = ("knn", self._round_coord(coord), k)
         if key in self._cache:
@@ -257,9 +251,7 @@ class SpatialQueryCache:
         if len(self._cache) > self._max_size:
             self._cache.popitem(last=False)
 
-    def get_radius(
-        self, coord: Coordinates, radius_km: float
-    ) -> Optional[List[Property]]:
+    def get_radius(self, coord: Coordinates, radius_km: float) -> Optional[List[Property]]:
         """Retrieve cached radius query results."""
         key = ("radius", self._round_coord(coord), round(radius_km, self.precision))
         if key in self._cache:
@@ -282,9 +274,7 @@ class SpatialQueryCache:
         if len(self._cache) > self._max_size:
             self._cache.popitem(last=False)
 
-    def get_lag(
-        self, coord: Coordinates, attr: str, k: int
-    ) -> Optional[float]:
+    def get_lag(self, coord: Coordinates, attr: str, k: int) -> Optional[float]:
         """Retrieve cached spatial lag value."""
         key = ("lag", self._round_coord(coord), attr, k)
         if key in self._cache:
@@ -294,9 +284,7 @@ class SpatialQueryCache:
         self._misses += 1
         return None
 
-    def set_lag(
-        self, coord: Coordinates, attr: str, k: int, val: float
-    ) -> None:
+    def set_lag(self, coord: Coordinates, attr: str, k: int, val: float) -> None:
         """Store spatial lag calculation into cache."""
         key = ("lag", self._round_coord(coord), attr, k)
         self._cache[key] = float(val)

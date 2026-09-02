@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import click
 import numpy as np
@@ -51,7 +51,9 @@ def _load_dataset(filepath: Union[str, Path], json_mode: bool = False) -> List[P
     path = Path(filepath)
     if not path.exists():
         if json_mode:
-            click.echo(json.dumps({"error": f"File not found: {filepath}", "status": "error"}, indent=2))
+            click.echo(
+                json.dumps({"error": f"File not found: {filepath}", "status": "error"}, indent=2)
+            )
             raise click.exceptions.Exit(1)
         else:
             console.print(f"[bold red]File not found: {filepath}[/bold red]")
@@ -66,7 +68,11 @@ def _load_dataset(filepath: Union[str, Path], json_mode: bool = False) -> List[P
         return PropertyDataLoader.load_json(path)
     except Exception as e:
         if json_mode:
-            click.echo(json.dumps({"error": f"Failed to load {filepath}: {str(e)}", "status": "error"}, indent=2))
+            click.echo(
+                json.dumps(
+                    {"error": f"Failed to load {filepath}: {str(e)}", "status": "error"}, indent=2
+                )
+            )
             raise click.exceptions.Exit(1)
         else:
             console.print(f"[bold red]Error loading dataset {filepath}: {str(e)}[/bold red]")
@@ -141,7 +147,9 @@ def version_cmd(json_mode: bool) -> None:
             )
         )
     else:
-        console.print(f"[bold cyan]real-estate-spatial[/bold cyan] version [green]{real_estate_spatial.__version__}[/green]")
+        console.print(
+            f"[bold cyan]real-estate-spatial[/bold cyan] version [green]{real_estate_spatial.__version__}[/green]"
+        )
 
 
 @cli.command(name="info")
@@ -198,12 +206,24 @@ def info_cmd(json_mode: bool) -> None:
 
 
 @cli.command(name="generate")
-@click.option("-n", "--count", default=200, type=int, help="Number of synthetic properties to generate")
-@click.option("-o", "--output", default="properties.json", help="Output file path (.json, .csv, .geojson)")
+@click.option(
+    "-n", "--count", default=200, type=int, help="Number of synthetic properties to generate"
+)
+@click.option(
+    "-o", "--output", default="properties.json", help="Output file path (.json, .csv, .geojson)"
+)
 @click.option("--lat", default=37.7749, type=float, help="Center latitude (e.g. 37.7749 for SF)")
-@click.option("--lon", default=-122.4194, type=float, help="Center longitude (e.g. -122.4194 for SF)")
+@click.option(
+    "--lon", default=-122.4194, type=float, help="Center longitude (e.g. -122.4194 for SF)"
+)
 @click.option("--seed", default=42, type=int, help="Random seed for reproducibility")
-@click.option("--radius-km", "radius_km", default=10.0, type=float, help="Generation radius in km around center")
+@click.option(
+    "--radius-km",
+    "radius_km",
+    default=10.0,
+    type=float,
+    help="Generation radius in km around center",
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def generate_cmd(
     count: int,
@@ -240,14 +260,25 @@ def generate_cmd(
             )
         )
     else:
-        console.print(f"[bold green]Successfully saved {len(props)} properties to [cyan]{output}[/cyan][/bold green]")
+        console.print(
+            f"[bold green]Successfully saved {len(props)} properties to [cyan]{output}[/cyan][/bold green]"
+        )
 
 
 @cli.command(name="validate")
 @click.option("-d", "--data", default="properties.json", help="Dataset file path")
-@click.option("--outliers/--no-outliers", default=True, help="Enable/disable spatial outlier detection")
-@click.option("--k-neighbors", default=15, type=int, help="Number of k-nearest neighbors for outlier detection")
-@click.option("--z-threshold", default=3.0, type=float, help="Z-score threshold for price/sqft anomalies")
+@click.option(
+    "--outliers/--no-outliers", default=True, help="Enable/disable spatial outlier detection"
+)
+@click.option(
+    "--k-neighbors",
+    default=15,
+    type=int,
+    help="Number of k-nearest neighbors for outlier detection",
+)
+@click.option(
+    "--z-threshold", default=3.0, type=float, help="Z-score threshold for price/sqft anomalies"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def validate_cmd(
     data: str,
@@ -296,7 +327,11 @@ def validate_cmd(
         console.print(create_spatial_outliers_table(spatial_outliers, max_rows=15))
 
     if is_clean:
-        console.print(Panel("[bold green]Validation PASSED: All records meet quality and spatial criteria.[/bold green]"))
+        console.print(
+            Panel(
+                "[bold green]Validation PASSED: All records meet quality and spatial criteria.[/bold green]"
+            )
+        )
     else:
         console.print(
             Panel(
@@ -307,10 +342,18 @@ def validate_cmd(
 
 @cli.command(name="clean")
 @click.option("-d", "--data", default="properties.json", help="Input dataset file path")
-@click.option("-o", "--output", default="cleaned_properties.json", help="Output cleaned dataset file path")
-@click.option("--drop-invalid/--keep-invalid", default=True, help="Drop records with validation errors")
-@click.option("--drop-outliers/--keep-outliers", default=False, help="Drop detected spatial price outliers")
-@click.option("--impute/--no-impute", default=True, help="Impute missing year_built and lot_size values")
+@click.option(
+    "-o", "--output", default="cleaned_properties.json", help="Output cleaned dataset file path"
+)
+@click.option(
+    "--drop-invalid/--keep-invalid", default=True, help="Drop records with validation errors"
+)
+@click.option(
+    "--drop-outliers/--keep-outliers", default=False, help="Drop detected spatial price outliers"
+)
+@click.option(
+    "--impute/--no-impute", default=True, help="Impute missing year_built and lot_size values"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def clean_cmd(
     data: str,
@@ -344,7 +387,9 @@ def clean_cmd(
         return
 
     console.print(create_cleaning_report_table(report, data, output))
-    console.print(f"[bold green]Saved cleaned dataset ({len(cleaned_props)} records) to [cyan]{output}[/cyan][/bold green]")
+    console.print(
+        f"[bold green]Saved cleaned dataset ({len(cleaned_props)} records) to [cyan]{output}[/cyan][/bold green]"
+    )
 
 
 @cli.command(name="comps")
@@ -358,7 +403,9 @@ def clean_cmd(
 @click.option("--year-built", default=None, type=int, help="Subject year built")
 @click.option("-k", "--max-comps", default=5, type=int, help="Number of comps to retrieve")
 @click.option("-r", "--radius", default=5.0, type=float, help="Search radius in km")
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before search")
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before search"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def comps_cmd(
     data: str,
@@ -435,7 +482,9 @@ def comps_cmd(
     default="auto",
     help="Valuation methodology",
 )
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before valuation")
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before valuation"
+)
 @click.option("--explain", is_flag=True, default=False, help="Generate explainability breakdown")
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def value_cmd(
@@ -490,8 +539,16 @@ def value_cmd(
 
 @cli.command(name="batch-value")
 @click.option("-d", "--data", default="properties.json", help="Training dataset file path")
-@click.option("-i", "--input", "input_file", required=True, help="Input properties file to value (.json, .csv, .geojson)")
-@click.option("-o", "--output", default=None, help="Optional output file path for valuations (.json, .csv)")
+@click.option(
+    "-i",
+    "--input",
+    "input_file",
+    required=True,
+    help="Input properties file to value (.json, .csv, .geojson)",
+)
+@click.option(
+    "-o", "--output", default=None, help="Optional output file path for valuations (.json, .csv)"
+)
 @click.option(
     "-s",
     "--strategy",
@@ -499,7 +556,9 @@ def value_cmd(
     default="auto",
     help="Valuation strategy",
 )
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before valuation")
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before valuation"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def batch_value_cmd(
     data: str,
@@ -535,7 +594,9 @@ def batch_value_cmd(
     if len(results) > 50:
         console.print(f"[dim]Showing first 50 of {len(results)} records.[/dim]")
     if output:
-        console.print(f"[bold green]Saved {len(results)} valuations to [cyan]{output}[/cyan][/bold green]")
+        console.print(
+            f"[bold green]Saved {len(results)} valuations to [cyan]{output}[/cyan][/bold green]"
+        )
 
 
 @cli.command(name="train")
@@ -548,8 +609,15 @@ def batch_value_cmd(
     help="Model type to train",
 )
 @click.option("-o", "--output", default=None, help="Output metrics path (.json)")
-@click.option("--split", default=0.8, type=float, help="Train/test split ratio (1.0 evaluates on training set)")
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before training")
+@click.option(
+    "--split",
+    default=0.8,
+    type=float,
+    help="Train/test split ratio (1.0 evaluates on training set)",
+)
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before training"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def train_cmd(
     data: str,
@@ -613,7 +681,12 @@ def train_cmd(
 @cli.command(name="benchmark")
 @click.option("-d", "--data", default="properties.json", help="Dataset file path")
 @click.option("--split", default=0.8, type=float, help="Train/test split ratio")
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before benchmarking")
+@click.option(
+    "--auto-clean",
+    is_flag=True,
+    default=False,
+    help="Automatically clean dataset before benchmarking",
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def benchmark_cmd(
     data: str,
@@ -628,7 +701,12 @@ def benchmark_cmd(
 
     if len(props) < 10:
         if json_mode:
-            click.echo(json.dumps({"error": "Need at least 10 properties for benchmarking", "status": "error"}, indent=2))
+            click.echo(
+                json.dumps(
+                    {"error": "Need at least 10 properties for benchmarking", "status": "error"},
+                    indent=2,
+                )
+            )
         else:
             console.print("[red]Need at least 10 properties for benchmarking[/red]")
         return
@@ -641,7 +719,9 @@ def benchmark_cmd(
     test_props = props[n_train:]
 
     if not json_mode:
-        console.print(f"[cyan]Benchmarking on {len(train_props)} train / {len(test_props)} test samples...[/cyan]")
+        console.print(
+            f"[cyan]Benchmarking on {len(train_props)} train / {len(test_props)} test samples...[/cyan]"
+        )
 
     valid_test = [p for p in test_props if p.price is not None and p.price > 0]
 
@@ -690,10 +770,25 @@ def benchmark_cmd(
 
 @cli.command(name="portfolio")
 @click.option("-d", "--data", default="properties.json", help="Training/market dataset file path")
-@click.option("-p", "--portfolio", "portfolio_file", required=True, help="Portfolio properties file (.json, .csv, .geojson)")
-@click.option("-o", "--output", default=None, help="Output file path for portfolio risk report (.json)")
-@click.option("--stress-shock", default=0.0, type=float, help="Macroeconomic price shock percentage (e.g. -10.0 for -10%)")
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before analysis")
+@click.option(
+    "-p",
+    "--portfolio",
+    "portfolio_file",
+    required=True,
+    help="Portfolio properties file (.json, .csv, .geojson)",
+)
+@click.option(
+    "-o", "--output", default=None, help="Output file path for portfolio risk report (.json)"
+)
+@click.option(
+    "--stress-shock",
+    default=0.0,
+    type=float,
+    help="Macroeconomic price shock percentage (e.g. -10.0 for -10%)",
+)
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before analysis"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def portfolio_cmd(
     data: str,
@@ -755,9 +850,15 @@ def portfolio_cmd(
     default="grid",
     help="Submarket clustering methodology",
 )
-@click.option("--cell-size", default=0.05, type=float, help="Grid cell size in degrees (approx ~5.5km)")
-@click.option("--min-size", default=2, type=int, help="Minimum property count per submarket cluster")
-@click.option("--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before analysis")
+@click.option(
+    "--cell-size", default=0.05, type=float, help="Grid cell size in degrees (approx ~5.5km)"
+)
+@click.option(
+    "--min-size", default=2, type=int, help="Minimum property count per submarket cluster"
+)
+@click.option(
+    "--auto-clean", is_flag=True, default=False, help="Automatically clean dataset before analysis"
+)
 @click.option("--json", "json_mode", is_flag=True, default=False, help="Output in JSON format")
 def submarket_cmd(
     data: str,
@@ -795,4 +896,3 @@ def submarket_cmd(
 
 if __name__ == "__main__":
     cli()
-

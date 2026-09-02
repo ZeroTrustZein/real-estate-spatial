@@ -23,7 +23,11 @@ class TestCompAdjustmentCalculator:
             id="SUBJ", address="A", coordinates=Coordinates(lat=0, lon=0), sqft=2000.0
         )
         comp = Property(
-            id="COMP", address="B", coordinates=Coordinates(lat=0, lon=0), sqft=1600.0, price=600000.0
+            id="COMP",
+            address="B",
+            coordinates=Coordinates(lat=0, lon=0),
+            sqft=1600.0,
+            price=600000.0,
         )
 
         # comp ppsqft = 600000 / 1600 = 375.0, marginal = 187.5
@@ -111,7 +115,9 @@ class TestCompAdjustmentCalculator:
     def test_time_trend_appreciation(self) -> None:
         """Test market appreciation over time and support for varied date formats."""
         calc = CompAdjustmentCalculator(annual_appreciation_rate=0.05)
-        subject = Property(id="SUBJ", address="A", coordinates=Coordinates(lat=0, lon=0), sqft=1500.0)
+        subject = Property(
+            id="SUBJ", address="A", coordinates=Coordinates(lat=0, lon=0), sqft=1500.0
+        )
 
         # Comp sold 2 years ago (730 days approx)
         comp_date = (date.today() - timedelta(days=730)).strftime("%Y-%m-%d")
@@ -144,7 +150,9 @@ class TestCompAdjustmentCalculator:
     def test_iso_timestamp_comp_dates(self) -> None:
         """Test ISO 8601 timestamp formats (e.g. 2024-05-01T12:00:00Z)."""
         calc = CompAdjustmentCalculator(annual_appreciation_rate=0.05)
-        subject = Property(id="SUBJ", address="A", coordinates=Coordinates(lat=0, lon=0), sqft=1500.0)
+        subject = Property(
+            id="SUBJ", address="A", coordinates=Coordinates(lat=0, lon=0), sqft=1500.0
+        )
 
         comp_iso_z = Property(
             id="COMP-ISO-Z",
@@ -154,7 +162,9 @@ class TestCompAdjustmentCalculator:
             price=400000.0,
             sale_date="2020-01-01T12:00:00Z",
         )
-        _, adjs = calc.calculate_adjustments(subject, comp_iso_z, reference_date="2022-01-01T00:00:00Z")
+        _, adjs = calc.calculate_adjustments(
+            subject, comp_iso_z, reference_date="2022-01-01T00:00:00Z"
+        )
         assert adjs["market_time"] > 0.0
         # 2 years of 5% on 400k
         assert 35000.0 < adjs["market_time"] < 45000.0
@@ -168,7 +178,9 @@ class TestCompAdjustmentCalculator:
             price=400000.0,
             sale_date="2020-01-01T08:00:00+00:00",
         )
-        _, adjs_off = calc.calculate_adjustments(subject, comp_iso_offset, reference_date="2022-01-01")
+        _, adjs_off = calc.calculate_adjustments(
+            subject, comp_iso_offset, reference_date="2022-01-01"
+        )
         assert adjs_off["market_time"] > 0.0
 
 

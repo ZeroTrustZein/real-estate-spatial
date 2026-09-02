@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
 
@@ -16,6 +16,7 @@ from real_estate_spatial.types import Property, ValuationResult
 # Try importing xgboost
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     xgb = None
@@ -86,7 +87,9 @@ class _SimpleDecisionTreeRegressor:
                 y_left = y[mask_left]
                 y_right = y[mask_right]
 
-                loss = np.sum((y_left - np.mean(y_left)) ** 2) + np.sum((y_right - np.mean(y_right)) ** 2)
+                loss = np.sum((y_left - np.mean(y_left)) ** 2) + np.sum(
+                    (y_right - np.mean(y_right)) ** 2
+                )
                 if loss < best_loss:
                     best_loss = loss
                     best_feat = feat
@@ -202,9 +205,7 @@ class SpatialGradientBoostingModel(BaseValuationModel):
         self._extractor = SpatialFeatureExtractor()
         self._model: Any = None
 
-    def _extract_features(
-        self, prop: Property, background: Sequence[Property]
-    ) -> np.ndarray:
+    def _extract_features(self, prop: Property, background: Sequence[Property]) -> np.ndarray:
         struct_feats = extract_structural_features(prop)
         spatial_feats = self._extractor.extract_all(prop, background)
 

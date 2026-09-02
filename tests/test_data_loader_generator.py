@@ -6,18 +6,19 @@ import json
 from pathlib import Path
 from typing import List
 
-import numpy as np
 import pytest
 
 from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
 from real_estate_spatial.data.loader import PropertyDataLoader
-from real_estate_spatial.types import Coordinates, Property
+from real_estate_spatial.types import Property
 
 
 class TestPropertyDataLoader:
     """Test suite for PropertyDataLoader across JSON, CSV, and GeoJSON formats."""
 
-    def test_json_roundtrip_and_structure(self, tmp_path: Path, sample_properties: List[Property]) -> None:
+    def test_json_roundtrip_and_structure(
+        self, tmp_path: Path, sample_properties: List[Property]
+    ) -> None:
         """Verify saving and loading JSON produces identical properties."""
         filepath = tmp_path / "subdir" / "properties.json"
 
@@ -61,7 +62,9 @@ class TestPropertyDataLoader:
         with pytest.raises(ValueError, match="Expected JSON file containing a list of properties"):
             PropertyDataLoader.load_json(filepath)
 
-    def test_csv_roundtrip_with_optional_fields(self, tmp_path: Path, sample_properties: List[Property]) -> None:
+    def test_csv_roundtrip_with_optional_fields(
+        self, tmp_path: Path, sample_properties: List[Property]
+    ) -> None:
         """Verify CSV saving and loading handles standard and optional property attributes."""
         filepath = tmp_path / "data" / "properties.csv"
         PropertyDataLoader.save_csv(sample_properties, filepath)

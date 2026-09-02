@@ -7,11 +7,10 @@ from typing import List
 import numpy as np
 import pytest
 
-from real_estate_spatial.models.base import BaseValuationModel
 from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
-from real_estate_spatial.types import Coordinates, ModelMetrics, Property, ValuationResult
+from real_estate_spatial.types import ModelMetrics, Property, ValuationResult
 
 
 class TestEnsembleValuationModel:
@@ -34,9 +33,7 @@ class TestEnsembleValuationModel:
         with pytest.raises(ValueError, match="at least one sub-model"):
             EnsembleValuationModel(models=[])
 
-    def test_fit_and_predict_performance_strategy(
-        self, sample_dataset: List[Property]
-    ) -> None:
+    def test_fit_and_predict_performance_strategy(self, sample_dataset: List[Property]) -> None:
         """Verify fitting with performance strategy and predictions."""
         train = sample_dataset[:40]
         test = sample_dataset[40:]
@@ -80,9 +77,7 @@ class TestEnsembleValuationModel:
         assert weights["HedonicSpatialRegression"] == pytest.approx(0.5)
         assert weights["SpatialGradientBoostingModel"] == pytest.approx(0.5)
 
-    def test_fit_custom_strategy_dict_and_list(
-        self, sample_dataset: List[Property]
-    ) -> None:
+    def test_fit_custom_strategy_dict_and_list(self, sample_dataset: List[Property]) -> None:
         """Verify custom weights passed as dict or list."""
         # Dict weights
         ens_dict = EnsembleValuationModel(

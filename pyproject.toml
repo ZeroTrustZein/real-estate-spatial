@@ -54,7 +54,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
-ignore = []
+ignore = ["E501"]
 
 [tool.coverage.run]
 source = ["real_estate_spatial"]

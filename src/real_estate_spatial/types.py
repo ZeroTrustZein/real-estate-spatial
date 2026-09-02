@@ -38,8 +38,15 @@ class Coordinates:
     lon: float
 
     def __post_init__(self) -> None:
-        if isinstance(self.lat, bool) or isinstance(self.lon, bool) or not isinstance(self.lat, (int, float)) or not isinstance(self.lon, (int, float)):
-            raise TypeError(f"Coordinates lat and lon must be numeric, got lat={type(self.lat)}, lon={type(self.lon)}")
+        if (
+            isinstance(self.lat, bool)
+            or isinstance(self.lon, bool)
+            or not isinstance(self.lat, (int, float))
+            or not isinstance(self.lon, (int, float))
+        ):
+            raise TypeError(
+                f"Coordinates lat and lon must be numeric, got lat={type(self.lat)}, lon={type(self.lon)}"
+            )
         if math.isnan(self.lat) or math.isnan(self.lon):
             raise ValueError("Coordinates cannot be NaN")
         if math.isinf(self.lat) or math.isinf(self.lon):
@@ -134,7 +141,11 @@ class BoundingBox:
         """Check if a coordinate point lies inside this bounding box."""
         if isinstance(point, Coordinates):
             lat, lon = point.lat, point.lon
-        elif isinstance(point, (tuple, list, Sequence)) and not isinstance(point, (str, bytes)) and len(point) == 2:
+        elif (
+            isinstance(point, (tuple, list, Sequence))
+            and not isinstance(point, (str, bytes))
+            and len(point) == 2
+        ):
             lat, lon = float(point[0]), float(point[1])
         else:
             raise TypeError(f"Expected Coordinates or 2-element sequence, got {type(point)}")
@@ -167,7 +178,9 @@ class BoundingBox:
     def from_tuple(cls, bbox: Sequence[float]) -> BoundingBox:
         """Create BoundingBox instance from sequence of 4 floats."""
         if len(bbox) != 4:
-            raise ValueError(f"Expected sequence of 4 items (min_lat, min_lon, max_lat, max_lon), got {len(bbox)}")
+            raise ValueError(
+                f"Expected sequence of 4 items (min_lat, min_lon, max_lat, max_lon), got {len(bbox)}"
+            )
         return cls(
             min_lat=float(bbox[0]),
             min_lon=float(bbox[1]),
@@ -290,10 +303,18 @@ class Property:
         lot_size = float(lot_size_raw) if lot_size_raw is not None and lot_size_raw != "" else None
 
         year_built_raw = data.get("year_built")
-        year_built = int(float(year_built_raw)) if year_built_raw is not None and year_built_raw != "" else None
+        year_built = (
+            int(float(year_built_raw))
+            if year_built_raw is not None and year_built_raw != ""
+            else None
+        )
 
         sale_date_raw = data.get("sale_date")
-        sale_date = str(sale_date_raw) if sale_date_raw is not None and str(sale_date_raw).strip() != "" else None
+        sale_date = (
+            str(sale_date_raw)
+            if sale_date_raw is not None and str(sale_date_raw).strip() != ""
+            else None
+        )
 
         return cls(
             id=str(data.get("id", "")),
@@ -383,9 +404,7 @@ class CompCandidate:
             similarity_score=float(data.get("similarity_score", 0.0)),
             distance_km=float(data.get("distance_km", 0.0)),
             time_diff_days=(
-                int(data["time_diff_days"])
-                if data.get("time_diff_days") is not None
-                else None
+                int(data["time_diff_days"]) if data.get("time_diff_days") is not None else None
             ),
             adjusted_price=float(data.get("adjusted_price", 0.0)),
             adjustments={k: float(v) for k, v in data.get("adjustments", {}).items()},
@@ -404,9 +423,7 @@ class ValuationResult:
     comps_used: List[Any] = field(default_factory=list)
     methodology: str = "valuation"
     feature_contributions: Dict[str, float] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @property
     def spread(self) -> float:
@@ -474,9 +491,7 @@ class ValuationResult:
             feature_contributions={
                 k: float(v) for k, v in data.get("feature_contributions", {}).items()
             },
-            timestamp=str(
-                data.get("timestamp", datetime.now(timezone.utc).isoformat())
-            ),
+            timestamp=str(data.get("timestamp", datetime.now(timezone.utc).isoformat())),
         )
 
 

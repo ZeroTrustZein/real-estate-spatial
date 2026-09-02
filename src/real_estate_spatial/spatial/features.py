@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Dict, List, Optional, Sequence
 
 from real_estate_spatial.spatial.coordinates import haversine_distance
@@ -92,9 +91,7 @@ class SpatialFeatureExtractor:
         active_landmarks = landmarks if landmarks is not None else self.landmarks
         result: Dict[str, float] = {}
         for name, coord in active_landmarks.items():
-            dist = haversine_distance(
-                target_coord.lat, target_coord.lon, coord.lat, coord.lon
-            )
+            dist = haversine_distance(target_coord.lat, target_coord.lon, coord.lat, coord.lon)
             result[f"dist_{name}_km"] = round(dist, 4)
         return result
 

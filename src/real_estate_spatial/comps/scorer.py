@@ -21,9 +21,7 @@ class SimilarityScorer:
         weight_age: float = 0.15,
         max_distance_km: float = 10.0,
     ) -> None:
-        total_weight = (
-            weight_distance + weight_sqft + weight_beds + weight_baths + weight_age
-        )
+        total_weight = weight_distance + weight_sqft + weight_beds + weight_baths + weight_age
         if total_weight <= 0:
             raise ValueError("Sum of weights must be positive")
 
@@ -75,9 +73,7 @@ class SimilarityScorer:
             age_sim = 0.8  # neutral default
 
         # Property type bonus/penalty
-        type_multiplier = (
-            1.0 if subject.property_type == comp.property_type else 0.8
-        )
+        type_multiplier = 1.0 if subject.property_type == comp.property_type else 0.8
 
         composite_score = (
             self.w_distance * dist_sim

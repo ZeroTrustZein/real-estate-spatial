@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import math
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Sequence
 
 import numpy as np
 
@@ -101,9 +100,7 @@ class BaseValuationModel(ABC):
 ValuationModel = BaseValuationModel
 
 
-def extract_structural_features(
-    prop: Property, ref_year: int = 2026
-) -> Dict[str, float]:
+def extract_structural_features(prop: Property, ref_year: int = 2026) -> Dict[str, float]:
     """Extract standardized structural property features."""
     return {
         "sqft": float(prop.sqft),
