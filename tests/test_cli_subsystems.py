@@ -168,3 +168,132 @@ class TestCLISubsystems:
         res_text = runner.invoke(cli, ["submarket", "-d", str(cli_dataset)])
         assert res_text.exit_code == 0
         assert "Market Overview & Submarkets" in res_text.output
+
+    def test_validate_and_clean_with_issues_and_outliers(self, tmp_path: Path):
+        runner = CliRunner()
+        # Create dataset with invalid property and outlier
+        invalid_props = [
+            {"id": "VALID1", "latitude": 37.77, "longitude": -122.42, "sqft": 1500, "price": 800000},
+            {"id": "VALID2", "latitude": 37.78, "longitude": -122.41, "sqft": 1600, "price": 850000},
+            {"id": "VALID3", "latitude": 37.76, "longitude": -122.43, "sqft": 1400, "price": 750000},
+            {"id": "VALID4", "latitude": 37.775, "longitude": -122.425, "sqft": 1550, "price": 820000},
+            {"id": "INVALID", "latitude": 37.77, "longitude": -122.42, "sqft": 50, "price": 10},
+            {"id": "OUTLIER", "latitude": 37.772, "longitude": -122.422, "sqft": 1500, "price": 10000000},
+        ]
+        bad_file = tmp_path / "bad_props.json"
+        with bad_file.open("w", encoding="utf-8") as f:
+            json.dump(invalid_props, f)
+
+        # Validate in rich text mode triggering issues table, spatial outliers table, and failed panel
+        res_val = runner.invoke(cli, ["validate", "-d", str(bad_file)])
+        assert res_val.exit_code == 0
+        assert "Validation Issues" in res_val.output
+        assert "Validation FAILED" in res_val.output
+
+        # Clean in rich text mode triggering dropped and imputed stats
+        cleaned_file = tmp_path / "cleaned_bad.json"
+        res_clean = runner.invoke(
+            cli,
+            [
+                "clean",
+                "-d",
+                str(bad_file),
+                "-o",
+                str(cleaned_file),
+                "--drop-invalid",
+                "--drop-outliers",
+                "--impute",
+            ],
+        )
+        assert res_clean.exit_code == 0
+        assert "Dataset Cleaning Report" in res_clean.output
+        assert cleaned_file.exists()
+
+    def test_comps_empty_and_not_found(self, tmp_path: Path):
+        runner = CliRunner()
+        # Empty dataset
+        empty_file = tmp_path / "empty.json"
+        with empty_file.open("w", encoding="utf-8") as f:
+            json.dump([], f)
+
+        res_empty = runner.invoke(
+            cli,
+            ["comps", "-d", str(empty_file), "--lat", "37.77", "--lon", "-122.42", "--sqft", "1500"],
+        )
+        assert res_empty.exit_code == 0
+        assert "Dataset is empty" in res_empty.output
+
+        res_empty_json = runner.invoke(
+            cli,
+            [
+                "comps",
+                "-d",
+                str(empty_file),
+                "--lat",
+                "37.77",
+                "--lon",
+                "-122.42",
+                "--sqft",
+                "1500",
+                "--json",
+            ],
+        )
+        assert res_empty_json.exit_code == 0
+        assert "Dataset is empty" in res_empty_json.output
+
+        # Comps with zero radius (no comps found)
+        valid_props = [
+            {"id": "P1", "latitude": 37.77, "longitude": -122.42, "sqft": 1500, "price": 800000}
+        ]
+        props_file = tmp_path / "props.json"
+        with props_file.open("w", encoding="utf-8") as f:
+            json.dump(valid_props, f)
+
+        res_not_found = runner.invoke(
+            cli,
+            [
+                "comps",
+                "-d",
+                str(props_file),
+                "--lat",
+                "0.0",
+                "--lon",
+                "0.0",
+                "--sqft",
+                "1500",
+                "-r",
+                "0.001",
+            ],
+        )
+        assert res_not_found.exit_code == 0
+        assert "No comparable properties found" in res_not_found.output
+
+    def test_batch_value_save_json_and_file_outputs(
+        self, cli_dataset: Path, cli_target_dataset: Path, tmp_path: Path
+    ):
+        runner = CliRunner()
+        out_json = tmp_path / "valuations.json"
+        res = runner.invoke(
+            cli,
+            [
+                "batch-value",
+                "-d",
+                str(cli_dataset),
+                "-i",
+                str(cli_target_dataset),
+                "-o",
+                str(out_json),
+                "--json",
+            ],
+        )
+        assert res.exit_code == 0
+        assert out_json.exists()
+        with out_json.open("r", encoding="utf-8") as f:
+            saved_data = json.load(f)
+        assert len(saved_data) == 5
+
+        # Submarket output file save in text mode
+        sub_out = tmp_path / "submarket_report.json"
+        res_sub = runner.invoke(cli, ["submarket", "-d", str(cli_dataset), "-o", str(sub_out)])
+        assert res_sub.exit_code == 0
+        assert sub_out.exists()

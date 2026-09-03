@@ -448,6 +448,7 @@ def comps_cmd(
     )
 
     comps = engine.find_comps(subject, max_comps=max_comps, max_radius_km=radius)
+    comps = [c for c in comps if c.distance_km <= radius]
 
     if json_mode:
         payload = {
