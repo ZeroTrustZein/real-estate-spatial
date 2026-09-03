@@ -337,12 +337,28 @@ class TestProperty:
                 "sqft": "1500",
                 "bedrooms": "3",
                 "bathrooms": "2.0",
+                "lot_size_sqft": "4000",
+                "year_built": "2005",
+                "sale_date": "2025-01-01",
             }
         )
         assert p1.coordinates.lat == 37.7749
         assert p1.price == 750000.0
         assert p1.sqft == 1500.0
         assert p1.bedrooms == 3
+        assert p1.lot_size_sqft == 4000.0
+        assert p1.year_built == 2005
+        assert p1.sale_date == "2025-01-01"
+
+        # Coordinates already Coordinates instance
+        p_coord_inst = Property.from_dict(
+            {
+                "id": "P1B",
+                "address": "123 Main St",
+                "coordinates": Coordinates(lat=37.7749, lon=-122.4194),
+            }
+        )
+        assert p_coord_inst.coordinates == Coordinates(lat=37.7749, lon=-122.4194)
 
         # Flat coordinates (lat, lon)
         p2 = Property.from_dict(
@@ -375,6 +391,38 @@ class TestProperty:
             }
         )
         assert p4.coordinates == Coordinates(lat=37.7749, lon=-122.4194)
+
+        # Fallback when coordinates missing and lat/lon missing
+        p_fallback = Property.from_dict({"id": "P5", "address": "Empty St"})
+        assert p_fallback.coordinates == Coordinates(lat=0.0, lon=0.0)
+
+    def test_property_init_coordinate_types_and_age_fallback(self) -> None:
+        """Test Property __post_init__ coordinate conversions/errors and age fallback."""
+        # List coordinates
+        p_list = Property(id="P_L", address="A", coordinates=[37.77, -122.41])  # type: ignore[arg-type]
+        assert isinstance(p_list.coordinates, Coordinates)
+        assert p_list.coordinates.lat == 37.77
+
+        # Tuple coordinates
+        p_tup = Property(id="P_T", address="A", coordinates=(37.77, -122.41))  # type: ignore[arg-type]
+        assert isinstance(p_tup.coordinates, Coordinates)
+
+        # Dict coordinates
+        p_dict = Property(id="P_D", address="A", coordinates={"lat": 37.77, "lon": -122.41})  # type: ignore[arg-type]
+        assert isinstance(p_dict.coordinates, Coordinates)
+
+        # Invalid coordinate type raises TypeError
+        with pytest.raises(TypeError, match="Invalid coordinates type"):
+            Property(id="P_ERR", address="A", coordinates="invalid_coord")  # type: ignore[arg-type]
+
+        # Property age invalid/non-numeric year_built fallback to 25.0
+        p_invalid_year = Property(
+            id="P_Y",
+            address="A",
+            coordinates=Coordinates(lat=0.0, lon=0.0),
+            year_built="invalid_year",  # type: ignore[arg-type]
+        )
+        assert p_invalid_year.age(2026) == 25.0
 
     def test_to_geojson_feature(self) -> None:
         """Test GeoJSON Feature conversion."""
@@ -454,6 +502,33 @@ class TestCompCandidate:
         )
         assert cand.net_adjustment_pct == 0.0
 
+    def test_comp_candidate_from_dict_variants_and_errors(self) -> None:
+        """Test CompCandidate.from_dict with Property instances and invalid types."""
+        base_prop = Property(
+            id="PROP-COMP-1",
+            address="123 Test St",
+            coordinates=Coordinates(lat=37.77, lon=-122.41),
+            price=500_000.0,
+        )
+
+        # property already a Property instance
+        c1 = CompCandidate.from_dict(
+            {
+                "property": base_prop,
+                "similarity_score": 0.85,
+                "distance_km": 1.2,
+                "time_diff_days": 10,
+                "adjusted_price": 510_000.0,
+                "adjustments": {"sqft": 10_000.0},
+            }
+        )
+        assert c1.property.id == "PROP-COMP-1"
+        assert c1.time_diff_days == 10
+
+        # Invalid property type
+        with pytest.raises(ValueError, match="CompCandidate data missing valid property"):
+            CompCandidate.from_dict({"property": "not_a_property"})
+
 
 class TestValuationResult:
     """Test suite for ValuationResult dataclass."""
@@ -496,6 +571,48 @@ class TestValuationResult:
             methodology="fallback",
         )
         assert res.spread_pct == 0.0
+
+    def test_valuation_result_comps_used_variants(self) -> None:
+        """Test ValuationResult serialization and deserialization with various comp formats."""
+        base_prop = Property(
+            id="PROP-COMP-2",
+            address="456 Test St",
+            coordinates=Coordinates(lat=37.77, lon=-122.41),
+            price=600_000.0,
+        )
+        cand = CompCandidate(
+            property=base_prop,
+            similarity_score=0.9,
+            distance_km=0.5,
+            time_diff_days=5,
+            adjusted_price=605_000.0,
+        )
+
+        # Mix of CompCandidate (has to_dict), Property (has to_dict), dict, and string
+        raw_dict_comp = {"raw_key": "raw_val"}
+        vr = ValuationResult(
+            property_id="P_VAL_1",
+            estimated_value=600_000.0,
+            confidence_score=0.95,
+            lower_bound=580_000.0,
+            upper_bound=620_000.0,
+            comps_used=[cand, base_prop, raw_dict_comp, "STR_COMP_ID"],
+        )
+
+        d = vr.to_dict()
+        assert len(d["comps_used"]) == 4
+        assert isinstance(d["comps_used"][0], dict) and "property" in d["comps_used"][0]
+        assert isinstance(d["comps_used"][1], dict) and "coordinates" in d["comps_used"][1]
+        assert d["comps_used"][2] == raw_dict_comp
+        assert d["comps_used"][3] == "STR_COMP_ID"
+
+        # Deserialize back
+        reconstructed = ValuationResult.from_dict(d)
+        assert len(reconstructed.comps_used) == 4
+        assert isinstance(reconstructed.comps_used[0], CompCandidate)
+        assert isinstance(reconstructed.comps_used[1], Property)
+        assert reconstructed.comps_used[2] == raw_dict_comp
+        assert reconstructed.comps_used[3] == "STR_COMP_ID"
 
 
 class TestModelMetrics:

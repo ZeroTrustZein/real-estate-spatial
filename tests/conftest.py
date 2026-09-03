@@ -6,7 +6,6 @@ from typing import List
 
 import pytest
 
-from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
 from real_estate_spatial.types import Coordinates, Property
 
 
@@ -100,6 +99,8 @@ def sample_properties() -> List[Property]:
 @pytest.fixture
 def sample_dataset() -> List[Property]:
     """Fixture returning 50 synthetic properties for training and valuation."""
+    from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
+
     gen = SyntheticRealEstateGenerator(
         center_lat=37.7749,
         center_lon=-122.4194,
