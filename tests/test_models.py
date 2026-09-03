@@ -330,3 +330,31 @@ class TestSpatialGradientBoostingModel:
         gbm_imps = gbm.feature_importances_
         assert len(gbm_imps) == len(SpatialGradientBoostingModel.FEATURE_NAMES)
         assert np.all(gbm_imps == pytest.approx(1.0 / len(gbm_imps)))
+
+    def test_spatial_gbm_import_and_availability_fallbacks(
+        self, sample_dataset: List[Property]
+    ) -> None:
+        """Test import error fallback and execution when xgboost is unavailable."""
+        import importlib
+        import sys
+        from unittest.mock import patch
+
+        import real_estate_spatial.models.spatial_gbm as gbm_mod
+
+        # Test ImportError fallback when xgboost is missing
+        with patch.dict(sys.modules, {"xgboost": None}):
+            importlib.reload(gbm_mod)
+            assert gbm_mod.HAS_XGBOOST is False
+            assert gbm_mod.xgb is None
+
+            # When HAS_XGBOOST is False, model falls back to numpy booster even with use_xgboost=True
+            gbm = gbm_mod.SpatialGradientBoostingModel(n_estimators=10, use_xgboost=True)
+            gbm.fit(sample_dataset[:25])
+            assert gbm.is_fitted is True
+            preds = gbm.predict(sample_dataset[25:30])
+            assert len(preds) == 5
+            assert np.all(preds > 0)
+
+        # Restore module state with xgboost available
+        importlib.reload(gbm_mod)
+        assert gbm_mod.HAS_XGBOOST is True

@@ -28,6 +28,7 @@ from real_estate_spatial.spatial.persistence import (
     SpatialQueryCache,
     _atomic_dump,
     _load_payload,
+    _resolve_format,
 )
 from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
@@ -547,6 +548,13 @@ class TestSpatialIndexSerializer:
         file_path.write_text("{}", encoding="utf-8")
         with pytest.raises(ValueError, match="Unsupported format"):
             _load_payload(file_path, fmt="unsupported")
+
+        # _resolve_format on non-existent file without extension falls back to "json"
+        assert _resolve_format(tmp_path / "missing_file_without_extension") == "json"
+
+        # _load_payload on non-existent file raises FileNotFoundError
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            _load_payload(tmp_path / "missing_payload_file.json", fmt="json")
 
         # load_index when data is already a SpatialIndex instance
         direct_idx_path = tmp_path / "direct_tree.pkl"
