@@ -169,7 +169,16 @@ class TestEnsembleValuationModel:
         # Performance strategy when all models evaluate with infinite error falls back to equal weights
         class InfiniteErrorModel(HedonicSpatialRegression):
             def evaluate(self, properties: Sequence[Property]) -> ModelMetrics:
-                return ModelMetrics(mape=float("inf"), mdape=0, rmse=float("inf"), mae=0, r2=0, within_5_pct=0, within_10_pct=0, within_20_pct=0)
+                return ModelMetrics(
+                    mape=float("inf"),
+                    mdape=0,
+                    rmse=float("inf"),
+                    mae=0,
+                    r2=0,
+                    within_5_pct=0,
+                    within_10_pct=0,
+                    within_20_pct=0,
+                )
 
         m1 = InfiniteErrorModel()
         m1.name = "M1"

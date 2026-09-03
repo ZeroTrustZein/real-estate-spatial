@@ -26,6 +26,8 @@ from real_estate_spatial.spatial.index import (
 from real_estate_spatial.spatial.persistence import (
     SpatialIndexSerializer,
     SpatialQueryCache,
+    _atomic_dump,
+    _load_payload,
 )
 from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
@@ -518,6 +520,61 @@ class TestSpatialIndexSerializer:
         with pytest.raises(ValueError):
             SpatialIndexSerializer.save_properties([], tmp_path / "test.xyz", format="xml")
 
+    def test_persistence_format_inference_no_extension(
+        self, sample_properties: List[Property], tmp_path
+    ) -> None:
+        """load_properties and load_index infer format from content if file has no extension."""
+        # JSON without extension
+        json_path = tmp_path / "props_no_ext_json"
+        SpatialIndexSerializer.save_properties(sample_properties, json_path, format="json")
+        loaded_json = SpatialIndexSerializer.load_properties(json_path)
+        assert len(loaded_json) == len(sample_properties)
+
+        # Binary without extension
+        bin_path = tmp_path / "props_no_ext_bin"
+        SpatialIndexSerializer.save_properties(sample_properties, bin_path, format="binary")
+        loaded_bin = SpatialIndexSerializer.load_properties(bin_path)
+        assert len(loaded_bin) == len(sample_properties)
+
+    def test_persistence_internal_dump_load_and_index_types(
+        self, sample_properties: List[Property], tmp_path
+    ) -> None:
+        """Internal _atomic_dump and _load_payload raise ValueError on unknown format."""
+        file_path = tmp_path / "test_unsupported.fmt"
+        with pytest.raises(ValueError, match="Unsupported format"):
+            _atomic_dump(file_path, {"test": 1}, fmt="unsupported")
+
+        file_path.write_text("{}", encoding="utf-8")
+        with pytest.raises(ValueError, match="Unsupported format"):
+            _load_payload(file_path, fmt="unsupported")
+
+        # load_index when data is already a SpatialIndex instance
+        direct_idx_path = tmp_path / "direct_tree.pkl"
+        _atomic_dump(direct_idx_path, KDTreeIndex(sample_properties), "binary")
+        loaded_direct = SpatialIndexSerializer.load_index(direct_idx_path)
+        assert isinstance(loaded_direct, KDTreeIndex)
+
+        # load_index when data is not a dict
+        invalid_index_path = tmp_path / "invalid_idx.json"
+        invalid_index_path.write_text("[1, 2, 3]", encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected JSON object for spatial index"):
+            SpatialIndexSerializer.load_index(invalid_index_path)
+
+        # load_properties with dict containing 'properties' key
+        wrapped_props_path = tmp_path / "wrapped_props.json"
+        wrapped_payload = {"properties": [p.to_dict() for p in sample_properties[:3]]}
+        import json
+
+        wrapped_props_path.write_text(json.dumps(wrapped_payload), encoding="utf-8")
+        loaded_wrapped = SpatialIndexSerializer.load_properties(wrapped_props_path)
+        assert len(loaded_wrapped) == 3
+
+        # load_properties when payload is not a list
+        not_list_path = tmp_path / "not_list.json"
+        not_list_path.write_text(json.dumps({"wrong": 123}), encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected list of properties"):
+            SpatialIndexSerializer.load_properties(not_list_path)
+
 
 class TestSpatialQueryCache:
     """Test in-memory spatial query caching and LRU eviction."""
@@ -615,3 +672,26 @@ class TestSpatialQueryCache:
         assert cache.hits == 0
         assert cache.misses == 0
         assert cache.hit_rate == 0.0
+
+    def test_spatial_query_cache_eviction_and_invalid_size(
+        self, sample_properties: List[Property]
+    ) -> None:
+        """Cache validates positive max_size and evicts oldest items on radius or lag insertion."""
+        with pytest.raises(ValueError, match="max_size must be positive"):
+            SpatialQueryCache(max_size=0)
+
+        cache = SpatialQueryCache(max_size=2)
+        c1 = Coordinates(37.1, -122.1)
+        c2 = Coordinates(37.2, -122.2)
+        c3 = Coordinates(37.3, -122.3)
+
+        cache.set_radius(c1, 1.0, [sample_properties[0]])
+        cache.set_radius(c2, 1.0, [sample_properties[1]])
+        assert cache.size == 2
+
+        # Insert 3rd -> c1 should be evicted
+        cache.set_radius(c3, 1.0, [sample_properties[2]])
+        assert cache.size == 2
+        assert cache.get_radius(c1, 1.0) is None
+        assert cache.get_radius(c2, 1.0) is not None
+        assert cache.get_radius(c3, 1.0) is not None

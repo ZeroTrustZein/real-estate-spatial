@@ -87,6 +87,7 @@ class TestModelMetrics:
 
     def test_base_model_predict_one_and_evaluate_validation(self) -> None:
         """BaseValuationModel predict_one and evaluate validation when price is missing."""
+
         class MinimalModel(BaseValuationModel):
             def fit(self, properties: Sequence[Property]) -> MinimalModel:
                 self.is_fitted = True
@@ -96,7 +97,9 @@ class TestModelMetrics:
                 return np.array([500000.0 for _ in properties], dtype=np.float64)
 
         model = MinimalModel("MinimalTestModel")
-        prop = Property(id="P1", address="A", coordinates=Coordinates(lat=0.0, lon=0.0), sqft=1000.0)
+        prop = Property(
+            id="P1", address="A", coordinates=Coordinates(lat=0.0, lon=0.0), sqft=1000.0
+        )
 
         # predict_one on unfitted model
         res_unfitted = model.predict_one(prop)
@@ -111,7 +114,16 @@ class TestModelMetrics:
 
         # evaluate without valid positive price properties raises ValueError
         with pytest.raises(ValueError, match="No properties with valid positive price"):
-            model.evaluate([Property(id="P_NOPRICE", address="B", coordinates=Coordinates(lat=0, lon=0), price=None)])
+            model.evaluate(
+                [
+                    Property(
+                        id="P_NOPRICE",
+                        address="B",
+                        coordinates=Coordinates(lat=0, lon=0),
+                        price=None,
+                    )
+                ]
+            )
 
 
 class TestHedonicSpatialRegression:
@@ -187,7 +199,9 @@ class TestHedonicSpatialRegression:
         with pytest.raises(ValueError):
             model.fit(sample_properties[:2])
 
-    def test_hedonic_predict_empty_and_unfitted_contributions(self, sample_properties: List[Property]) -> None:
+    def test_hedonic_predict_empty_and_unfitted_contributions(
+        self, sample_properties: List[Property]
+    ) -> None:
         """predict([]) returns empty array; unfitted get_feature_contributions returns {}."""
         model = HedonicSpatialRegression()
         assert model.get_feature_contributions(sample_properties[0]) == {}

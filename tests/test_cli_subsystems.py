@@ -173,12 +173,42 @@ class TestCLISubsystems:
         runner = CliRunner()
         # Create dataset with invalid property and outlier
         invalid_props = [
-            {"id": "VALID1", "latitude": 37.77, "longitude": -122.42, "sqft": 1500, "price": 800000},
-            {"id": "VALID2", "latitude": 37.78, "longitude": -122.41, "sqft": 1600, "price": 850000},
-            {"id": "VALID3", "latitude": 37.76, "longitude": -122.43, "sqft": 1400, "price": 750000},
-            {"id": "VALID4", "latitude": 37.775, "longitude": -122.425, "sqft": 1550, "price": 820000},
+            {
+                "id": "VALID1",
+                "latitude": 37.77,
+                "longitude": -122.42,
+                "sqft": 1500,
+                "price": 800000,
+            },
+            {
+                "id": "VALID2",
+                "latitude": 37.78,
+                "longitude": -122.41,
+                "sqft": 1600,
+                "price": 850000,
+            },
+            {
+                "id": "VALID3",
+                "latitude": 37.76,
+                "longitude": -122.43,
+                "sqft": 1400,
+                "price": 750000,
+            },
+            {
+                "id": "VALID4",
+                "latitude": 37.775,
+                "longitude": -122.425,
+                "sqft": 1550,
+                "price": 820000,
+            },
             {"id": "INVALID", "latitude": 37.77, "longitude": -122.42, "sqft": 50, "price": 10},
-            {"id": "OUTLIER", "latitude": 37.772, "longitude": -122.422, "sqft": 1500, "price": 10000000},
+            {
+                "id": "OUTLIER",
+                "latitude": 37.772,
+                "longitude": -122.422,
+                "sqft": 1500,
+                "price": 10000000,
+            },
         ]
         bad_file = tmp_path / "bad_props.json"
         with bad_file.open("w", encoding="utf-8") as f:
@@ -218,7 +248,17 @@ class TestCLISubsystems:
 
         res_empty = runner.invoke(
             cli,
-            ["comps", "-d", str(empty_file), "--lat", "37.77", "--lon", "-122.42", "--sqft", "1500"],
+            [
+                "comps",
+                "-d",
+                str(empty_file),
+                "--lat",
+                "37.77",
+                "--lon",
+                "-122.42",
+                "--sqft",
+                "1500",
+            ],
         )
         assert res_empty.exit_code == 0
         assert "Dataset is empty" in res_empty.output

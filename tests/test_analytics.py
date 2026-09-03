@@ -13,7 +13,7 @@ from real_estate_spatial.analytics.submarket import (
 )
 from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
 from real_estate_spatial.pipeline.orchestrator import ValuationOrchestrator
-from real_estate_spatial.types import Coordinates, Property, ValuationResult
+from real_estate_spatial.types import Coordinates, Property, PropertyType, ValuationResult
 
 
 @pytest.fixture
@@ -107,6 +107,36 @@ class TestPortfolioAssessor:
         assert stress_res["stressed_total_value"] < stress_res["baseline_total_value"]
         assert stress_res["percentage_change"] < -15.0  # further lowered by spatial hotspot
 
+    def test_assess_portfolio_with_enum_property_types(self) -> None:
+        """PortfolioAssessor handles PropertyType enum objects in property_type_breakdown."""
+        assessor = PortfolioAssessor()
+        p1 = Property(
+            id="P_ENUM_1",
+            address="1 Enum St",
+            coordinates=Coordinates(37.77, -122.42),
+            sqft=1500.0,
+            price=500000.0,
+        )
+        object.__setattr__(p1, "property_type", PropertyType.SINGLE_FAMILY)
+        p2 = Property(
+            id="P_ENUM_2",
+            address="2 Enum St",
+            coordinates=Coordinates(37.78, -122.41),
+            sqft=1000.0,
+            price=400000.0,
+        )
+        object.__setattr__(p2, "property_type", PropertyType.CONDO)
+        props = [p1, p2]
+        results, summary = assessor.assess_portfolio(props)
+        assert summary.total_properties == 2
+        assert "single_family" in summary.property_type_breakdown
+        assert "condo" in summary.property_type_breakdown
+        assert summary.property_type_breakdown["single_family"]["count"] == 1
+        assert summary.property_type_breakdown["condo"]["count"] == 1
+        d = summary.to_dict()
+        assert d["total_properties"] == 2
+        assert "single_family" in d["property_type_breakdown"]
+
 
 class TestSubmarketAnalyzer:
     def test_empty_submarkets(self):
@@ -185,3 +215,54 @@ class TestSubmarketAnalyzer:
         report = analyzer.generate_market_report(props)
         assert report["overall_median_price_per_sqft"] == 600.0
         assert report["overall_mean_price_per_sqft"] == 600.0
+
+    def test_submarket_analyzer_radial_clustering_and_empty_prices(self) -> None:
+        """identify_submarkets with method='spatial' clusters nearby properties and skips isolated singletons."""
+        analyzer = SubmarketAnalyzer(grid_cell_size_deg=0.05, min_cluster_size=2)
+        p1 = Property(
+            id="C1",
+            address="A",
+            coordinates=Coordinates(37.770, -122.420),
+            sqft=1000.0,
+            price=500000.0,
+        )
+        p2 = Property(
+            id="C2",
+            address="B",
+            coordinates=Coordinates(37.772, -122.421),
+            sqft=1200.0,
+            price=550000.0,
+        )
+        p_isolated = Property(
+            id="ISO",
+            address="C",
+            coordinates=Coordinates(38.500, -121.000),
+            sqft=1500.0,
+            price=800000.0,
+        )
+
+        submarkets = analyzer.identify_submarkets([p1, p2, p_isolated], method="spatial")
+        assert len(submarkets) == 1
+        assert submarkets[0].property_count == 2
+        assert "SUBM-CLUST" in submarkets[0].submarket_id
+
+        unpriced = [
+            Property(
+                id="U1",
+                address="U1",
+                coordinates=Coordinates(37.77, -122.42),
+                sqft=1000.0,
+                price=None,
+            ),
+            Property(
+                id="U2",
+                address="U2",
+                coordinates=Coordinates(37.78, -122.41),
+                sqft=1000.0,
+                price=0.0,
+            ),
+        ]
+        report = analyzer.generate_market_report(unpriced)
+        assert report["priced_properties"] == 0
+        assert report["submarket_count"] == 0
+        assert report["overall_median_price"] == 0.0
