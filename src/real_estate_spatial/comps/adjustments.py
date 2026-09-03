@@ -8,6 +8,23 @@ from typing import Dict, Optional, Tuple
 from real_estate_spatial.types import Property
 
 
+def parse_date_string(d_str: Optional[str]) -> Optional[date]:
+    """Parse date string supporting ISO formats and common date representations."""
+    if not d_str:
+        return None
+    try:
+        iso_str = d_str.replace("Z", "+00:00") if d_str.endswith("Z") else d_str
+        return datetime.fromisoformat(iso_str).date()
+    except (ValueError, TypeError):
+        pass
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m", "%Y"):
+        try:
+            return datetime.strptime(d_str, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 class CompAdjustmentCalculator:
     """Calculates standardized monetary adjustments to bring a comp in line with subject property."""
 
@@ -28,19 +45,7 @@ class CompAdjustmentCalculator:
         self.annual_appreciation_rate = annual_appreciation_rate
 
     def _parse_date(self, d_str: Optional[str]) -> Optional[date]:
-        if not d_str:
-            return None
-        try:
-            iso_str = d_str.replace("Z", "+00:00") if d_str.endswith("Z") else d_str
-            return datetime.fromisoformat(iso_str).date()
-        except (ValueError, TypeError):
-            pass
-        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m", "%Y"):
-            try:
-                return datetime.strptime(d_str, fmt).date()
-            except ValueError:
-                continue
-        return None
+        return parse_date_string(d_str)
 
     def calculate_adjustments(
         self,

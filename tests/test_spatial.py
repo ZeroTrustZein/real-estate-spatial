@@ -16,7 +16,13 @@ from real_estate_spatial.spatial.coordinates import (
     point_in_bbox,
 )
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
-from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex
+from real_estate_spatial.spatial.index import (
+    GridIndex,
+    KDTreeIndex,
+    chord_distance_to_great_circle_km,
+    great_circle_km_to_chord_distance,
+    unpack_bbox,
+)
 from real_estate_spatial.spatial.persistence import (
     SpatialIndexSerializer,
     SpatialQueryCache,
@@ -83,6 +89,45 @@ class TestCoordinateCalculations:
         # Point far away is outside
         assert point_in_bbox(lat + 2.0, lon, bbox) is False
         assert point_in_bbox(lat, lon + 2.0, bbox) is False
+
+    def test_chord_distance_conversions(self) -> None:
+        """Test conversion between 3D unit sphere chord distance and great circle km."""
+        # 0 distance
+        chord_0 = great_circle_km_to_chord_distance(0.0)
+        assert chord_0 == pytest.approx(0.0)
+        km_0 = chord_distance_to_great_circle_km(chord_0)
+        assert km_0 == pytest.approx(0.0)
+
+        # Antipodal / maximum distance: pi * R ≈ 20,015 km -> chord = 2.0
+        max_km = math.pi * EARTH_RADIUS_KM
+        chord_max = great_circle_km_to_chord_distance(max_km)
+        assert chord_max == pytest.approx(2.0, abs=1e-5)
+        km_reconstructed = chord_distance_to_great_circle_km(chord_max)
+        assert km_reconstructed == pytest.approx(max_km, rel=1e-4)
+
+        # Arbitrary intermediate distance roundtrip
+        test_dists = [1.0, 10.0, 50.0, 500.0, 5000.0]
+        for d in test_dists:
+            c = great_circle_km_to_chord_distance(d)
+            roundtrip_d = chord_distance_to_great_circle_km(c)
+            assert roundtrip_d == pytest.approx(d, rel=1e-5)
+
+    def test_unpack_bbox_tuple_list_and_errors(self) -> None:
+        """Test unpacking of bounding box types and validation errors."""
+        # BoundingBox instance
+        b = BoundingBox(min_lat=37.0, min_lon=-122.5, max_lat=38.0, max_lon=-121.5)
+        assert unpack_bbox(b) == (37.0, -122.5, 38.0, -121.5)
+
+        # 4-element tuple and list
+        assert unpack_bbox((37.0, -122.0, 38.0, -121.0)) == (37.0, -122.0, 38.0, -121.0)
+        assert unpack_bbox([37.0, -122.0, 38.0, -121.0]) == (37.0, -122.0, 38.0, -121.0)
+
+        # Invalid length raises ValueError
+        with pytest.raises(ValueError, match="Bounding box must contain 4 values"):
+            unpack_bbox((37.0, -122.0, 38.0))  # type: ignore[arg-type]
+
+        with pytest.raises(ValueError, match="Bounding box must contain 4 values"):
+            unpack_bbox([1.0, 2.0, 3.0, 4.0, 5.0])
 
 
 class TestKDTreeIndex:
@@ -207,6 +252,16 @@ class TestKDTreeIndex:
         for _, dist in knn:
             assert dist == pytest.approx(0.0, abs=1e-5)
 
+    def test_kdtree_rebuild_with_empty_properties(self, sample_properties: List[Property]) -> None:
+        """Calling build([]) on a built KDTree clears tree and resets dimensions."""
+        tree = KDTreeIndex(sample_properties)
+        assert tree.size() > 0
+        tree.build([])
+        assert tree.size() == 0
+        assert tree._root is None
+        assert len(tree._lats) == 0
+        assert len(tree._lons) == 0
+
 
 class TestGridIndex:
     """Test Spatial Grid Index functionality and edge cases."""
@@ -321,6 +376,12 @@ class TestSpatialFeatureExtractor:
         assert (
             extractor.spatial_lag(target, [prop_no_price], value_attr="non_existent_field") == 0.0
         )
+
+    def test_spatial_lag_with_k_zero(self, sample_properties: List[Property]) -> None:
+        """Spatial lag with k=0 returns 0.0 safely."""
+        extractor = SpatialFeatureExtractor()
+        target = Coordinates(lat=37.7749, lon=-122.4194)
+        assert extractor.spatial_lag(target, sample_properties, k=0) == 0.0
 
     def test_local_density_and_exclude_id(self, sample_properties: List[Property]) -> None:
         """Local density counts properties within radius and respects exclude_id."""

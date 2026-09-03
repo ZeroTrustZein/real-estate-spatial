@@ -7,7 +7,10 @@ from typing import List
 
 import pytest
 
-from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
+from real_estate_spatial.comps.adjustments import (
+    CompAdjustmentCalculator,
+    parse_date_string,
+)
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.comps.scorer import SimilarityScorer
 from real_estate_spatial.types import CompCandidate, Coordinates, Property, ValuationResult
@@ -331,3 +334,132 @@ class TestCompsEngine:
         assert val.estimated_value == pytest.approx(2000.0 * 350.0)
         assert val.confidence_score == 0.1
         assert val.comps_used == []
+
+    def test_parse_date_string_variants_and_fallbacks(self) -> None:
+        """Test parse_date_string and engine._parse_date on multiple date formats and invalid inputs."""
+        engine = CompsEngine()
+        assert parse_date_string(None) is None
+        assert parse_date_string("") is None
+        assert parse_date_string("invalid_date_format") is None
+        assert engine._parse_date("not-a-valid-date") is None
+
+        # %Y-%m-%d
+        d1 = parse_date_string("2024-03-15")
+        assert d1 is not None and d1.year == 2024 and d1.month == 3 and d1.day == 15
+
+        # %Y/%m/%d
+        d2 = parse_date_string("2023/11/20")
+        assert d2 is not None and d2.year == 2023 and d2.month == 11 and d2.day == 20
+
+        # %Y-%m
+        d3 = parse_date_string("2022-07")
+        assert d3 is not None and d3.year == 2022 and d3.month == 7 and d3.day == 1
+
+        # %Y
+        d4 = parse_date_string("2021")
+        assert d4 is not None and d4.year == 2021 and d4.month == 1 and d4.day == 1
+
+    def test_similarity_scorer_auto_distance_and_negative_clamp(self) -> None:
+        """Scorer automatically computes haversine distance if distance_km is None, and clamps negative distances."""
+        scorer = SimilarityScorer()
+        p1 = Property(
+            id="P1",
+            address="A",
+            coordinates=Coordinates(lat=37.7749, lon=-122.4194),
+            sqft=1500.0,
+            year_built=2000,
+        )
+        p2 = Property(
+            id="P2",
+            address="B",
+            coordinates=Coordinates(lat=37.7800, lon=-122.4100),
+            sqft=1500.0,
+            year_built=2000,
+        )
+
+        score_auto = scorer.score(p1, p2, distance_km=None)
+        assert 0.0 < score_auto < 1.0
+
+        # Negative distance should clamp to 0.0
+        score_neg = scorer.score(p1, p1, distance_km=-5.0)
+        assert score_neg == pytest.approx(1.0, abs=1e-5)
+
+    def test_comps_engine_max_sale_age_days_filter(self) -> None:
+        """Comps older than max_sale_age_days are filtered out."""
+        engine = CompsEngine()
+        old_date = (date.today() - timedelta(days=500)).strftime("%Y-%m-%d")
+        recent_date = (date.today() - timedelta(days=50)).strftime("%Y-%m-%d")
+
+        old_comp = Property(
+            id="OLD",
+            address="Old St",
+            coordinates=Coordinates(lat=37.7749, lon=-122.4194),
+            sqft=1500.0,
+            price=600000.0,
+            sale_date=old_date,
+        )
+        recent_comp = Property(
+            id="RECENT",
+            address="Recent St",
+            coordinates=Coordinates(lat=37.7749, lon=-122.4194),
+            sqft=1500.0,
+            price=620000.0,
+            sale_date=recent_date,
+        )
+        engine.fit([old_comp, recent_comp])
+
+        subject = Property(
+            id="SUBJ",
+            address="Subj St",
+            coordinates=Coordinates(lat=37.7749, lon=-122.4194),
+            sqft=1500.0,
+        )
+        comps = engine.find_comps(subject, max_comps=5, max_sale_age_days=180)
+        assert len(comps) == 1
+        assert comps[0].property.id == "RECENT"
+
+    def test_comps_engine_zero_weights_equal_weight_fallback(self) -> None:
+        """When comps have zero similarity scores, equal weight fallback is used."""
+        engine = CompsEngine()
+        comp1 = Property(
+            id="C1",
+            address="C1 St",
+            coordinates=Coordinates(lat=37.77, lon=-122.41),
+            sqft=1000.0,
+            price=500000.0,
+        )
+        comp2 = Property(
+            id="C2",
+            address="C2 St",
+            coordinates=Coordinates(lat=37.78, lon=-122.42),
+            sqft=1000.0,
+            price=600000.0,
+        )
+        engine.fit([comp1, comp2])
+
+        subject = Property(
+            id="SUBJ",
+            address="Subj St",
+            coordinates=Coordinates(lat=37.77, lon=-122.41),
+            sqft=1000.0,
+        )
+
+        # Mock find_comps returning candidates with similarity_score = 0.0
+        c_cand1 = CompCandidate(
+            property=comp1,
+            similarity_score=0.0,
+            distance_km=0.1,
+            time_diff_days=0,
+            adjusted_price=500000.0,
+        )
+        c_cand2 = CompCandidate(
+            property=comp2,
+            similarity_score=0.0,
+            distance_km=0.2,
+            time_diff_days=0,
+            adjusted_price=600000.0,
+        )
+        engine.find_comps = lambda *args, **kwargs: [c_cand1, c_cand2]  # type: ignore[method-assign]
+
+        val = engine.value(subject)
+        assert val.estimated_value == pytest.approx(550000.0)

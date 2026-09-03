@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Sequence
 
 import numpy as np
 import pytest
@@ -85,6 +85,34 @@ class TestModelMetrics:
         assert feats["age"] == 20.0
         assert feats["lot_size_sqft"] == 6000.0
 
+    def test_base_model_predict_one_and_evaluate_validation(self) -> None:
+        """BaseValuationModel predict_one and evaluate validation when price is missing."""
+        class MinimalModel(BaseValuationModel):
+            def fit(self, properties: Sequence[Property]) -> MinimalModel:
+                self.is_fitted = True
+                return self
+
+            def predict(self, properties: Sequence[Property]) -> np.ndarray:
+                return np.array([500000.0 for _ in properties], dtype=np.float64)
+
+        model = MinimalModel("MinimalTestModel")
+        prop = Property(id="P1", address="A", coordinates=Coordinates(lat=0.0, lon=0.0), sqft=1000.0)
+
+        # predict_one on unfitted model
+        res_unfitted = model.predict_one(prop)
+        assert res_unfitted.confidence_score == 0.2
+        assert res_unfitted.methodology == "MinimalTestModel"
+        assert res_unfitted.estimated_value == 500000.0
+
+        # predict_one on fitted model
+        model.fit([prop])
+        res_fitted = model.predict_one(prop)
+        assert res_fitted.confidence_score == 0.85
+
+        # evaluate without valid positive price properties raises ValueError
+        with pytest.raises(ValueError, match="No properties with valid positive price"):
+            model.evaluate([Property(id="P_NOPRICE", address="B", coordinates=Coordinates(lat=0, lon=0), price=None)])
+
 
 class TestHedonicSpatialRegression:
     """Test Hedonic Spatial Regression training, inference, and regularization."""
@@ -159,6 +187,43 @@ class TestHedonicSpatialRegression:
         with pytest.raises(ValueError):
             model.fit(sample_properties[:2])
 
+    def test_hedonic_predict_empty_and_unfitted_contributions(self, sample_properties: List[Property]) -> None:
+        """predict([]) returns empty array; unfitted get_feature_contributions returns {}."""
+        model = HedonicSpatialRegression()
+        assert model.get_feature_contributions(sample_properties[0]) == {}
+
+        model.fit(sample_properties)
+        assert len(model.predict([])) == 0
+
+        # Zero coefficients feature_importances fallback
+        model.coefficients = np.zeros(len(model.coefficients))
+        imps = model.feature_importances_
+        assert len(imps) == len(HedonicSpatialRegression.FEATURE_NAMES) - 1
+        assert np.all(imps == pytest.approx(1.0 / len(imps)))
+
+    def test_hedonic_singular_matrix_lstsq_fallback(self) -> None:
+        """Singular design matrix with alpha=0 falls back to lstsq."""
+        props = [
+            Property(
+                id=f"P_SING_{i}",
+                address="Same St",
+                coordinates=Coordinates(lat=37.77, lon=-122.41),
+                sqft=1500.0,
+                price=500000.0,
+                bedrooms=3,
+                bathrooms=2.0,
+                year_built=2000,
+                lot_size_sqft=5000.0,
+            )
+            for i in range(6)
+        ]
+        model = HedonicSpatialRegression(alpha=0.0)
+        model.fit(props)
+        assert model.is_fitted is True
+        preds = model.predict(props)
+        assert len(preds) == 6
+        assert np.all(preds > 0)
+
 
 class TestSpatialGradientBoostingModel:
     """Test Spatial Gradient Boosting Model with fallback tree ensemble and XGBoost."""
@@ -217,3 +282,37 @@ class TestSpatialGradientBoostingModel:
         # Fit with only 4 samples
         with pytest.raises(ValueError):
             model.fit(sample_properties[:4])
+
+    def test_constant_target_and_empty_importances(self) -> None:
+        """_SimpleDecisionTreeRegressor with constant target builds single leaf; importances fallback."""
+        from real_estate_spatial.models.spatial_gbm import (
+            _NumpyGradientBoostingRegressor,
+            _SimpleDecisionTreeLeaf,
+            _SimpleDecisionTreeRegressor,
+        )
+
+        X = np.ones((10, 3))
+        y = np.full(10, 100.0)
+        tree = _SimpleDecisionTreeRegressor().fit(X, y)
+        assert isinstance(tree.root, _SimpleDecisionTreeLeaf)
+        assert tree.root.value == 100.0
+
+        # When min_samples_split=2 but n_samples=3 so no split can have >=2 on each side
+        X3 = np.array([[1.0], [2.0], [3.0]])
+        y3 = np.array([10.0, 20.0, 30.0])
+        tree3 = _SimpleDecisionTreeRegressor(min_samples_split=2).fit(X3, y3)
+        assert isinstance(tree3.root, _SimpleDecisionTreeLeaf)
+
+        # _NumpyGradientBoostingRegressor when no trees have splits
+        booster = _NumpyGradientBoostingRegressor(n_estimators=0)
+        imps = booster.get_feature_importances(3)
+        assert len(imps) == 3
+        assert np.all(imps == pytest.approx(1.0 / 3.0))
+
+        # SpatialGradientBoostingModel fallback when model has neither feature_importances_ nor get_feature_importances
+        gbm = SpatialGradientBoostingModel()
+        gbm.is_fitted = True
+        gbm._model = object()  # dummy model without importances
+        gbm_imps = gbm.feature_importances_
+        assert len(gbm_imps) == len(SpatialGradientBoostingModel.FEATURE_NAMES)
+        assert np.all(gbm_imps == pytest.approx(1.0 / len(gbm_imps)))
