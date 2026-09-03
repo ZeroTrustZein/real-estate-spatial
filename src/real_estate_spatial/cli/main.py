@@ -41,7 +41,7 @@ from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
 from real_estate_spatial.pipeline.orchestrator import ValuationOrchestrator
-from real_estate_spatial.types import Coordinates, Property, ValuationResult
+from real_estate_spatial.types import Coordinates, Property, PropertyType, ValuationResult
 
 console = Console()
 
@@ -401,6 +401,16 @@ def clean_cmd(
 @click.option("--baths", default=2.0, type=float, help="Subject bathrooms")
 @click.option("--lot-size", default=None, type=float, help="Subject lot size in sqft")
 @click.option("--year-built", default=None, type=int, help="Subject year built")
+@click.option(
+    "-t",
+    "--property-type",
+    type=click.Choice(
+        ["single_family", "condo", "townhouse", "multi_family", "land"],
+        case_sensitive=False,
+    ),
+    default="single_family",
+    help="Subject property type",
+)
 @click.option("-k", "--max-comps", default=5, type=int, help="Number of comps to retrieve")
 @click.option("-r", "--radius", default=5.0, type=float, help="Search radius in km")
 @click.option(
@@ -416,6 +426,7 @@ def comps_cmd(
     baths: float,
     lot_size: Optional[float],
     year_built: Optional[int],
+    property_type: str,
     max_comps: int,
     radius: float,
     auto_clean: bool,
@@ -445,6 +456,7 @@ def comps_cmd(
         bathrooms=baths,
         lot_size_sqft=lot_size,
         year_built=year_built,
+        property_type=PropertyType(property_type.lower()),
     )
 
     comps = engine.find_comps(subject, max_comps=max_comps, max_radius_km=radius)
@@ -477,6 +489,16 @@ def comps_cmd(
 @click.option("--lot-size", default=None, type=float, help="Subject lot size in sqft")
 @click.option("--year-built", default=None, type=int, help="Subject year built")
 @click.option(
+    "-t",
+    "--property-type",
+    type=click.Choice(
+        ["single_family", "condo", "townhouse", "multi_family", "land"],
+        case_sensitive=False,
+    ),
+    default="single_family",
+    help="Subject property type",
+)
+@click.option(
     "-m",
     "--method",
     type=click.Choice(["auto", "ensemble", "comps", "hedonic", "gbm"], case_sensitive=False),
@@ -497,6 +519,7 @@ def value_cmd(
     baths: float,
     lot_size: Optional[float],
     year_built: Optional[int],
+    property_type: str,
     method: str,
     auto_clean: bool,
     explain: bool,
@@ -514,6 +537,7 @@ def value_cmd(
         bathrooms=baths,
         lot_size_sqft=lot_size,
         year_built=year_built,
+        property_type=PropertyType(property_type.lower()),
     )
 
     orchestrator = ValuationOrchestrator()

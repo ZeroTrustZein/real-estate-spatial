@@ -56,6 +56,7 @@ def test_package_exports() -> None:
     assert DataCleaner is not None
     assert EnsembleValuationModel is not None
     assert ValuationOrchestrator is not None
+    assert real_estate_spatial.cli is not None
 
 
 def test_coordinates_instantiation_and_validation() -> None:
