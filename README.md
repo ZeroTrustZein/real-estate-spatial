@@ -123,34 +123,34 @@ real-estate-spatial version
 real-estate-spatial generate -n 500 -o data/properties.json --lat 37.7749 --lon -122.4194
 
 # 2. Validate dataset for missing fields, schema errors, and spatial outliers
-real-estate-spatial validate -i data/properties.json
+real-estate-spatial validate -d data/properties.json
 
 # 3. Clean dataset (deduplication, median imputation, outlier removal)
-real-estate-spatial clean -i data/properties.json -o data/properties_cleaned.json
+real-estate-spatial clean -d data/properties.json -o data/properties_cleaned.json
 
 # 4. Search appraisal comparables for a target property
-real-estate-spatial comps -i data/properties_cleaned.json \
-  --lat 37.7760 --lon -122.4180 --sqft 1850 --beds 3 --baths 2.0 -k 5
+real-estate-spatial comps -d data/properties_cleaned.json \
+  --lat 37.7760 --lon -122.4180 --sqft 1850 --beds 3 --baths 2.0 -t single_family -k 5 -r 5.0
 
 # 5. Run end-to-end automated property valuation with explainability
-real-estate-spatial value -i data/properties_cleaned.json \
-  --lat 37.7760 --lon -122.4180 --sqft 1850 --beds 3 --baths 2.0 --strategy auto
+real-estate-spatial value -d data/properties_cleaned.json \
+  --lat 37.7760 --lon -122.4180 --sqft 1850 --beds 3 --baths 2.0 -t single_family -m auto --explain
 
 # 6. Batch value an entire portfolio of target properties
 real-estate-spatial batch-value -d data/properties_cleaned.json -i target_props.json -o valuations.json
 
 # 7. Train and evaluate spatial valuation models (Hedonic, GBM, Ensemble)
-real-estate-spatial train -i data/properties_cleaned.json --model ensemble --split 0.2
+real-estate-spatial train -d data/properties_cleaned.json -m ensemble --split 0.8
 
 # 8. Benchmark all model architectures head-to-head
-real-estate-spatial benchmark -i data/properties_cleaned.json --split 0.2
+real-estate-spatial benchmark -d data/properties_cleaned.json --split 0.8
 
 # 9. Analyze spatial submarkets and pricing volatility
-real-estate-spatial submarket -i data/properties_cleaned.json --cell-size 0.05
+real-estate-spatial submarket -d data/properties_cleaned.json --cell-size 0.05
 
 # 10. Portfolio risk assessment and macroeconomic stress testing
-real-estate-spatial portfolio -i data/properties_cleaned.json \
-  --shock-pct -12.5 --hotspot "37.7749,-122.4194,5.0,-5.0"
+real-estate-spatial portfolio -d data/properties_cleaned.json -p target_props.json \
+  --stress-shock -12.5
 ```
 
 ---

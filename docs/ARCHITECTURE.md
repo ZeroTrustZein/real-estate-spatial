@@ -236,3 +236,64 @@ $$\text{Spread \%} = \frac{\text{Upper Bound} - \text{Lower Bound}}{\hat{V}} \ti
   Applies macroeconomic shocks ($\Delta_{\text{macro}}\%$) alongside localized spatial circular shock hotspots ($(\phi_h, \lambda_h, r_h, \Delta_{\text{local}}\%)$):
 
 $$\text{Price}_{\text{stressed}}(p) = \hat{V}(p) \times (1 + \Delta_{\text{macro}}) \times \prod_{h \in H, d(p, c_h) \le r_h} (1 + \Delta_{\text{local}, h})$$
+
+---
+
+## 6. Data Integrity & Spatial Anomaly Detection
+
+### 6.1 Multi-Format Data Ingestion
+The `PropertyDataLoader` provides schema normalization across three standard formats:
+- **JSON**: Native property dictionaries or wrapped arrays with automatic nested coordinate unpacking.
+- **GeoJSON**: Standard RFC 7946 `FeatureCollection` structures where `geometry.coordinates` `[lon, lat]` are mapped directly to domain `Coordinates`.
+- **CSV**: Flat tabular data with case-insensitive column matching for coordinates (`latitude`/`lat`, `longitude`/`lon`) and optional attribute imputation.
+
+### 6.2 Rule-Based Structural Validation (`DataValidator`)
+Validates individual records against strict physical bounds:
+- Geographic coordinates bounded to $[-90^\circ, +90^\circ]$ lat and $[-180^\circ, +180^\circ]$ lon; flags Null Island $(0.0, 0.0)$ as a data quality warning.
+- Living area ($\text{sqft} > 0$), bedroom/bathroom non-negativity, and realistic year built thresholds ($1700 \le \text{year} \le 2035$).
+- Strict price per square foot bounds to catch misplaced decimal places or non-standard pricing records.
+
+### 6.3 Local Spatial Price Outlier Detection
+Standard global outlier detection fails in real estate because property values vary dramatically across neighborhoods. `DataValidator.detect_spatial_outliers` implements local spatial neighborhood anomaly filtering:
+1. Constructs a `KDTreeIndex` over all valid priced properties.
+2. For each property $p$, queries its $k$-nearest neighbors $N_k(p)$ (default $k=15$).
+3. Computes the local price per square foot distribution $\mathcal{D}_k = \{\text{PPSQFT}_j : j \in N_k(p)\}$.
+4. Evaluates anomalies using either:
+   - **Z-Score Method**: Flags records where $|z| = \left|\frac{\text{PPSQFT}(p) - \mu_k}{\sigma_k}\right| \ge \tau_z$ (default $\tau_z = 3.0$).
+   - **IQR Method**: Flags records outside $[Q_1 - 1.5 \times \text{IQR}, Q_3 + 1.5 \times \text{IQR}]$.
+
+---
+
+## 7. Spatial Persistence & High-Throughput Caching
+
+### 7.1 Spatial Index Serialization (`SpatialIndexSerializer`)
+Provides lightweight persistence for precomputed spatial indices without requiring an external GIS database:
+- **JSON**: Human-readable, portable export including bounding metadata, coordinate lists, and index configuration.
+- **Binary**: Fast serialization for high-density property collections.
+
+### 7.2 LRU Spatial Query Caching (`SpatialQueryCache`)
+To optimize multi-stage valuation workflows where spatial lag, density, and $k$-NN comps are evaluated repeatedly:
+- Employs an exact Least-Recently-Used (LRU) cache parameterized by coordinate hash and query radius.
+- Decouples cache invalidation on pipeline re-fitting to prevent stale spatial index states.
+
+---
+
+## 8. Architectural Design Principles & Resilience
+
+### 8.1 Zero-Hard-Dependency Fallbacks
+The system operates seamlessly in minimal environments without C-extensions or external machine learning runtimes:
+- **Gradient Boosting**: Automatically uses native `xgboost` if available; otherwise falls back to a pure NumPy boosted decision tree regressor.
+- **KD-Tree Spatial Queries**: Uses `scipy.spatial.KDTree` when available; falls back to an exact pure Python/NumPy recursive 3D $k$-d tree.
+- **Hedonic Regression**: Uses closed-form NumPy linear algebra with singular matrix least-squares regularization fallback.
+
+### 8.2 True Spherical Geospatial Invariance
+By mapping latitude and longitude into 3D Cartesian space on a unit sphere ($x^2 + y^2 + z^2 = 1$), spatial indexing eliminates distortion near the poles and across the antimeridian, delivering true spherical neighborhood searches with $O(\log N)$ complexity.
+
+### 8.3 Blended Appraisal-ML Decision Hierarchy
+Automated valuation models frequently struggle in sparse markets or atypical properties. The `ValuationOrchestrator` implements an appraisal-grade fallback hierarchy:
+1. When comparable density and similarity are high, combines appraisal comps with ML predictions.
+2. In data-sparse areas, gracefully transitions to full ML ensemble or hedonic estimates.
+3. In extreme edge cases without spatial coverage, falls back to robust submarket median heuristics.
+
+### 8.4 Type Safety & Static Typing
+All domain models (`Coordinates`, `BoundingBox`, `Property`, `CompCandidate`, `ValuationResult`, `ModelMetrics`) are implemented as frozen or validated dataclasses with PEP 561 `py.typed` compliance, eliminating runtime type confusion across subsystems.

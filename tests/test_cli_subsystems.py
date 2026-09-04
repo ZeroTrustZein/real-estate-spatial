@@ -556,12 +556,15 @@ class TestCLISubsystems:
     def test_main_entry_module_execution(self):
         import runpy
         import sys
+        import warnings
 
         old_argv = sys.argv
         try:
             sys.argv = ["real-estate-spatial", "--help"]
             with pytest.raises(SystemExit) as exc_info:
-                runpy.run_module("real_estate_spatial.cli.main", run_name="__main__")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    runpy.run_module("real_estate_spatial.cli.main", run_name="__main__")
             assert exc_info.value.code == 0
         finally:
             sys.argv = old_argv
