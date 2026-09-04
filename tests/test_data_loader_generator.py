@@ -156,6 +156,36 @@ class TestPropertyDataLoader:
             assert orig.coordinates.lon == pytest.approx(res.coordinates.lon)
             assert orig.sqft == pytest.approx(res.sqft)
 
+    def test_geojson_load_feature_id_fallback(self, tmp_path: Path) -> None:
+        """Load GeoJSON where feature id is at the top-level feature rather than in properties."""
+        geojson_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "id": "TOP-LEVEL-ID-999",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [-122.4194, 37.7749],
+                    },
+                    "properties": {
+                        "address": "999 Market St",
+                        "sqft": 1800.0,
+                        "price": 950000.0,
+                    },
+                }
+            ],
+        }
+        file_path = tmp_path / "top_level_id.geojson"
+        with file_path.open("w", encoding="utf-8") as f:
+            json.dump(geojson_data, f)
+
+        loaded = PropertyDataLoader.load_geojson(file_path)
+        assert len(loaded) == 1
+        assert loaded[0].id == "TOP-LEVEL-ID-999"
+        assert loaded[0].address == "999 Market St"
+        assert loaded[0].sqft == 1800.0
+
 
 class TestSyntheticRealEstateGenerator:
     """Test suite for SyntheticRealEstateGenerator."""

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, datetime
+from datetime import date
 from typing import List, Optional, Sequence
 
 import numpy as np
@@ -37,19 +37,7 @@ class CompsEngine:
         return self
 
     def _parse_date(self, d_str: Optional[str]) -> Optional[date]:
-        if not d_str:
-            return None
-        try:
-            iso_str = d_str.replace("Z", "+00:00") if d_str.endswith("Z") else d_str
-            return datetime.fromisoformat(iso_str).date()
-        except (ValueError, TypeError):
-            pass
-        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m", "%Y"):
-            try:
-                return datetime.strptime(d_str, fmt).date()
-            except ValueError:
-                continue
-        return None
+        return self.adjuster._parse_date(d_str)
 
     def find_comps(
         self,

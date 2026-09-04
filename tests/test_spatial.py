@@ -16,10 +16,19 @@ from real_estate_spatial.spatial.coordinates import (
     point_in_bbox,
 )
 from real_estate_spatial.spatial.features import SpatialFeatureExtractor
-from real_estate_spatial.spatial.index import GridIndex, KDTreeIndex
+from real_estate_spatial.spatial.index import (
+    GridIndex,
+    KDTreeIndex,
+    chord_distance_to_great_circle_km,
+    great_circle_km_to_chord_distance,
+    unpack_bbox,
+)
 from real_estate_spatial.spatial.persistence import (
     SpatialIndexSerializer,
     SpatialQueryCache,
+    _atomic_dump,
+    _load_payload,
+    _resolve_format,
 )
 from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
@@ -83,6 +92,45 @@ class TestCoordinateCalculations:
         # Point far away is outside
         assert point_in_bbox(lat + 2.0, lon, bbox) is False
         assert point_in_bbox(lat, lon + 2.0, bbox) is False
+
+    def test_chord_distance_conversions(self) -> None:
+        """Test conversion between 3D unit sphere chord distance and great circle km."""
+        # 0 distance
+        chord_0 = great_circle_km_to_chord_distance(0.0)
+        assert chord_0 == pytest.approx(0.0)
+        km_0 = chord_distance_to_great_circle_km(chord_0)
+        assert km_0 == pytest.approx(0.0)
+
+        # Antipodal / maximum distance: pi * R ≈ 20,015 km -> chord = 2.0
+        max_km = math.pi * EARTH_RADIUS_KM
+        chord_max = great_circle_km_to_chord_distance(max_km)
+        assert chord_max == pytest.approx(2.0, abs=1e-5)
+        km_reconstructed = chord_distance_to_great_circle_km(chord_max)
+        assert km_reconstructed == pytest.approx(max_km, rel=1e-4)
+
+        # Arbitrary intermediate distance roundtrip
+        test_dists = [1.0, 10.0, 50.0, 500.0, 5000.0]
+        for d in test_dists:
+            c = great_circle_km_to_chord_distance(d)
+            roundtrip_d = chord_distance_to_great_circle_km(c)
+            assert roundtrip_d == pytest.approx(d, rel=1e-5)
+
+    def test_unpack_bbox_tuple_list_and_errors(self) -> None:
+        """Test unpacking of bounding box types and validation errors."""
+        # BoundingBox instance
+        b = BoundingBox(min_lat=37.0, min_lon=-122.5, max_lat=38.0, max_lon=-121.5)
+        assert unpack_bbox(b) == (37.0, -122.5, 38.0, -121.5)
+
+        # 4-element tuple and list
+        assert unpack_bbox((37.0, -122.0, 38.0, -121.0)) == (37.0, -122.0, 38.0, -121.0)
+        assert unpack_bbox([37.0, -122.0, 38.0, -121.0]) == (37.0, -122.0, 38.0, -121.0)
+
+        # Invalid length raises ValueError
+        with pytest.raises(ValueError, match="Bounding box must contain 4 values"):
+            unpack_bbox((37.0, -122.0, 38.0))  # type: ignore[arg-type]
+
+        with pytest.raises(ValueError, match="Bounding box must contain 4 values"):
+            unpack_bbox([1.0, 2.0, 3.0, 4.0, 5.0])
 
 
 class TestKDTreeIndex:
@@ -207,6 +255,16 @@ class TestKDTreeIndex:
         for _, dist in knn:
             assert dist == pytest.approx(0.0, abs=1e-5)
 
+    def test_kdtree_rebuild_with_empty_properties(self, sample_properties: List[Property]) -> None:
+        """Calling build([]) on a built KDTree clears tree and resets dimensions."""
+        tree = KDTreeIndex(sample_properties)
+        assert tree.size() > 0
+        tree.build([])
+        assert tree.size() == 0
+        assert tree._root is None
+        assert len(tree._lats) == 0
+        assert len(tree._lons) == 0
+
 
 class TestGridIndex:
     """Test Spatial Grid Index functionality and edge cases."""
@@ -321,6 +379,12 @@ class TestSpatialFeatureExtractor:
         assert (
             extractor.spatial_lag(target, [prop_no_price], value_attr="non_existent_field") == 0.0
         )
+
+    def test_spatial_lag_with_k_zero(self, sample_properties: List[Property]) -> None:
+        """Spatial lag with k=0 returns 0.0 safely."""
+        extractor = SpatialFeatureExtractor()
+        target = Coordinates(lat=37.7749, lon=-122.4194)
+        assert extractor.spatial_lag(target, sample_properties, k=0) == 0.0
 
     def test_local_density_and_exclude_id(self, sample_properties: List[Property]) -> None:
         """Local density counts properties within radius and respects exclude_id."""
@@ -457,6 +521,68 @@ class TestSpatialIndexSerializer:
         with pytest.raises(ValueError):
             SpatialIndexSerializer.save_properties([], tmp_path / "test.xyz", format="xml")
 
+    def test_persistence_format_inference_no_extension(
+        self, sample_properties: List[Property], tmp_path
+    ) -> None:
+        """load_properties and load_index infer format from content if file has no extension."""
+        # JSON without extension
+        json_path = tmp_path / "props_no_ext_json"
+        SpatialIndexSerializer.save_properties(sample_properties, json_path, format="json")
+        loaded_json = SpatialIndexSerializer.load_properties(json_path)
+        assert len(loaded_json) == len(sample_properties)
+
+        # Binary without extension
+        bin_path = tmp_path / "props_no_ext_bin"
+        SpatialIndexSerializer.save_properties(sample_properties, bin_path, format="binary")
+        loaded_bin = SpatialIndexSerializer.load_properties(bin_path)
+        assert len(loaded_bin) == len(sample_properties)
+
+    def test_persistence_internal_dump_load_and_index_types(
+        self, sample_properties: List[Property], tmp_path
+    ) -> None:
+        """Internal _atomic_dump and _load_payload raise ValueError on unknown format."""
+        file_path = tmp_path / "test_unsupported.fmt"
+        with pytest.raises(ValueError, match="Unsupported format"):
+            _atomic_dump(file_path, {"test": 1}, fmt="unsupported")
+
+        file_path.write_text("{}", encoding="utf-8")
+        with pytest.raises(ValueError, match="Unsupported format"):
+            _load_payload(file_path, fmt="unsupported")
+
+        # _resolve_format on non-existent file without extension falls back to "json"
+        assert _resolve_format(tmp_path / "missing_file_without_extension") == "json"
+
+        # _load_payload on non-existent file raises FileNotFoundError
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            _load_payload(tmp_path / "missing_payload_file.json", fmt="json")
+
+        # load_index when data is already a SpatialIndex instance
+        direct_idx_path = tmp_path / "direct_tree.pkl"
+        _atomic_dump(direct_idx_path, KDTreeIndex(sample_properties), "binary")
+        loaded_direct = SpatialIndexSerializer.load_index(direct_idx_path)
+        assert isinstance(loaded_direct, KDTreeIndex)
+
+        # load_index when data is not a dict
+        invalid_index_path = tmp_path / "invalid_idx.json"
+        invalid_index_path.write_text("[1, 2, 3]", encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected JSON object for spatial index"):
+            SpatialIndexSerializer.load_index(invalid_index_path)
+
+        # load_properties with dict containing 'properties' key
+        wrapped_props_path = tmp_path / "wrapped_props.json"
+        wrapped_payload = {"properties": [p.to_dict() for p in sample_properties[:3]]}
+        import json
+
+        wrapped_props_path.write_text(json.dumps(wrapped_payload), encoding="utf-8")
+        loaded_wrapped = SpatialIndexSerializer.load_properties(wrapped_props_path)
+        assert len(loaded_wrapped) == 3
+
+        # load_properties when payload is not a list
+        not_list_path = tmp_path / "not_list.json"
+        not_list_path.write_text(json.dumps({"wrong": 123}), encoding="utf-8")
+        with pytest.raises(ValueError, match="Expected list of properties"):
+            SpatialIndexSerializer.load_properties(not_list_path)
+
 
 class TestSpatialQueryCache:
     """Test in-memory spatial query caching and LRU eviction."""
@@ -554,3 +680,26 @@ class TestSpatialQueryCache:
         assert cache.hits == 0
         assert cache.misses == 0
         assert cache.hit_rate == 0.0
+
+    def test_spatial_query_cache_eviction_and_invalid_size(
+        self, sample_properties: List[Property]
+    ) -> None:
+        """Cache validates positive max_size and evicts oldest items on radius or lag insertion."""
+        with pytest.raises(ValueError, match="max_size must be positive"):
+            SpatialQueryCache(max_size=0)
+
+        cache = SpatialQueryCache(max_size=2)
+        c1 = Coordinates(37.1, -122.1)
+        c2 = Coordinates(37.2, -122.2)
+        c3 = Coordinates(37.3, -122.3)
+
+        cache.set_radius(c1, 1.0, [sample_properties[0]])
+        cache.set_radius(c2, 1.0, [sample_properties[1]])
+        assert cache.size == 2
+
+        # Insert 3rd -> c1 should be evicted
+        cache.set_radius(c3, 1.0, [sample_properties[2]])
+        assert cache.size == 2
+        assert cache.get_radius(c1, 1.0) is None
+        assert cache.get_radius(c2, 1.0) is not None
+        assert cache.get_radius(c3, 1.0) is not None

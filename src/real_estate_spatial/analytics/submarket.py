@@ -173,7 +173,7 @@ class SubmarketAnalyzer:
                 "submarkets": [],
             }
 
-        prices = [p.price for p in valid_props]
+        prices = [p.price for p in valid_props if p.price is not None]
         valid_pps_all = [
             p.price_per_sqft
             for p in valid_props

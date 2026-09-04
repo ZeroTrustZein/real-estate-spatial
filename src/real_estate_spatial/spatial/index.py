@@ -20,14 +20,18 @@ from real_estate_spatial.spatial.coordinates import (
 from real_estate_spatial.types import BoundingBox, Coordinates, Property
 
 
-def _unpack_bbox(
+def unpack_bbox(
     bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]],
 ) -> Tuple[float, float, float, float]:
+    """Unpack a bounding box into (min_lat, min_lon, max_lat, max_lon)."""
     if isinstance(bbox, BoundingBox):
         return (bbox.min_lat, bbox.min_lon, bbox.max_lat, bbox.max_lon)
     if len(bbox) != 4:
         raise ValueError("Bounding box must contain 4 values: (min_lat, min_lon, max_lat, max_lon)")
     return (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+
+
+_unpack_bbox = unpack_bbox
 
 
 class SpatialIndex(ABC):
@@ -92,17 +96,21 @@ def _lat_lon_to_cartesian(lat: float, lon: float) -> np.ndarray:
     return np.array([x, y, z], dtype=np.float64)
 
 
-def _chord_distance_to_great_circle_km(chord_dist: float) -> float:
+def chord_distance_to_great_circle_km(chord_dist: float) -> float:
     """Convert 3D Euclidean chord distance on unit sphere to great-circle distance in km."""
     half_chord = min(1.0, max(0.0, chord_dist / 2.0))
     angle_rad = 2.0 * math.asin(half_chord)
     return EARTH_RADIUS_KM * angle_rad
 
 
-def _great_circle_km_to_chord_distance(distance_km: float) -> float:
+def great_circle_km_to_chord_distance(distance_km: float) -> float:
     """Convert great-circle distance in km to 3D Euclidean chord distance on unit sphere."""
     angle_rad = min(math.pi, distance_km / EARTH_RADIUS_KM)
     return 2.0 * math.sin(angle_rad / 2.0)
+
+
+_chord_distance_to_great_circle_km = chord_distance_to_great_circle_km
+_great_circle_km_to_chord_distance = great_circle_km_to_chord_distance
 
 
 class KDTreeIndex(SpatialIndex):

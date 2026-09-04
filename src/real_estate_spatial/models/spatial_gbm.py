@@ -19,7 +19,7 @@ try:
 
     HAS_XGBOOST = True
 except ImportError:
-    xgb = None
+    xgb = None  # type: ignore[assignment]
     HAS_XGBOOST = False
 
 

@@ -2,6 +2,7 @@
 
 from real_estate_spatial.analytics.portfolio import PortfolioAssessor, PortfolioRiskSummary
 from real_estate_spatial.analytics.submarket import SubmarketAnalyzer, SubmarketMetrics
+from real_estate_spatial.cli.main import cli
 from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
 from real_estate_spatial.comps.engine import CompsEngine
 from real_estate_spatial.comps.scorer import SimilarityScorer
@@ -85,4 +86,5 @@ __all__ = [
     "PortfolioRiskSummary",
     "SubmarketAnalyzer",
     "SubmarketMetrics",
+    "cli",
 ]

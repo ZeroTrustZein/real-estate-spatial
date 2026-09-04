@@ -362,3 +362,154 @@ class TestDataCleaner:
         assert len(cleaned) == 15
         assert all(p.id != "P-OUTLIER" for p in cleaned)
         assert report.dropped_reasons.get("spatial_outlier") == 1
+
+    def test_clean_dataset_drop_invalid_false_and_impute_false(
+        self, clean_properties: List[Property]
+    ) -> None:
+        cleaner = DataCleaner(drop_invalid=False, impute_missing=False)
+        bad_prop = Property(
+            id="P_BAD",
+            address="Bad St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=10.0,
+            sqft=1500.0,
+            year_built=None,
+        )
+        dataset = [clean_properties[0], bad_prop]
+        cleaned, report = cleaner.clean_dataset(dataset)
+        assert len(cleaned) == 2
+        assert any(p.id == "P_BAD" for p in cleaned)
+        assert report.cleaned_count == 2
+        assert report.dropped_count == 0
+        assert cleaned[1].year_built is None
+
+    def test_clean_dataset_empty_input(self) -> None:
+        cleaner = DataCleaner()
+        cleaned, report = cleaner.clean_dataset([])
+        assert len(cleaned) == 0
+        assert report.initial_count == 0
+        assert report.cleaned_count == 0
+
+
+class TestValidatorSubsystemEdgeCases:
+    """Detailed edge cases for DataValidator rule checking."""
+
+    def test_validate_coordinates_out_of_range_and_non_coordinates(self) -> None:
+        validator = DataValidator()
+
+        class DummyCoordinates:
+            pass
+
+        p_invalid = Property(
+            id="P_DUMMY",
+            address="123 Dummy St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=500000.0,
+            sqft=1500.0,
+        )
+        object.__setattr__(p_invalid, "coordinates", DummyCoordinates())
+        issues = validator.validate_property(p_invalid)
+        assert any(i.rule == "invalid_coordinates" and i.severity == "error" for i in issues)
+
+        p_oob = Property(
+            id="P_OOB",
+            address="123 OOB St",
+            coordinates=Coordinates(0.0, 0.0),
+            price=500000.0,
+            sqft=1500.0,
+        )
+        coord_oob = Coordinates(0.0, 0.0)
+        object.__setattr__(coord_oob, "lat", 95.0)
+        object.__setattr__(p_oob, "coordinates", coord_oob)
+        issues_oob = validator.validate_property(p_oob)
+        assert any(
+            i.rule == "coordinates_out_of_range" and i.severity == "error" for i in issues_oob
+        )
+
+    def test_validate_price_missing_and_negative(self) -> None:
+        validator = DataValidator()
+        p_no_price = Property(
+            id="P_NOPRICE",
+            address="St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=None,
+            sqft=1000.0,
+        )
+        issues = validator.validate_property(p_no_price)
+        assert any(i.rule == "missing_price" and i.severity == "warning" for i in issues)
+
+        p_neg_price = Property(
+            id="P_NEGPRICE",
+            address="St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=100.0,
+            sqft=1000.0,
+        )
+        object.__setattr__(p_neg_price, "price", -500.0)
+        issues_neg = validator.validate_property(p_neg_price)
+        assert any(i.rule == "invalid_price" and i.severity == "error" for i in issues_neg)
+
+        p_neg_sqft = Property(
+            id="P_NEGSQFT",
+            address="St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=500000.0,
+            sqft=1000.0,
+        )
+        object.__setattr__(p_neg_sqft, "sqft", -100.0)
+        issues_sqft = validator.validate_property(p_neg_sqft)
+        assert any(i.rule == "invalid_sqft" and i.severity == "error" for i in issues_sqft)
+
+    def test_validate_bedrooms_bathrooms_and_lot_size_ranges(self) -> None:
+        validator = DataValidator()
+        p = Property(
+            id="P_ROOMS",
+            address="St",
+            coordinates=Coordinates(37.77, -122.42),
+            price=500000.0,
+            sqft=1000.0,
+        )
+        object.__setattr__(p, "bedrooms", -2)
+        object.__setattr__(p, "bathrooms", -1.0)
+        object.__setattr__(p, "lot_size_sqft", -500.0)
+        issues = validator.validate_property(p)
+        assert any(i.rule == "invalid_bedrooms" and i.severity == "error" for i in issues)
+        assert any(i.rule == "invalid_bathrooms" and i.severity == "error" for i in issues)
+        assert any(i.rule == "invalid_lot_size" and i.severity == "error" for i in issues)
+
+        object.__setattr__(p, "bedrooms", 60)
+        object.__setattr__(p, "bathrooms", 55.0)
+        object.__setattr__(p, "lot_size_sqft", 5000.0)
+        issues_excess = validator.validate_property(p)
+        assert any(
+            i.rule == "excessive_bedrooms" and i.severity == "warning" for i in issues_excess
+        )
+        assert any(
+            i.rule == "excessive_bathrooms" and i.severity == "warning" for i in issues_excess
+        )
+
+    def test_detect_spatial_outliers_insufficient_local_neighbors(self) -> None:
+        validator = DataValidator()
+        p1 = Property(
+            id="P1",
+            address="A",
+            coordinates=Coordinates(lat=0.0, lon=0.0),
+            price=300000.0,
+            sqft=1000.0,
+        )
+        p2 = Property(
+            id="P2",
+            address="B",
+            coordinates=Coordinates(lat=40.0, lon=40.0),
+            price=300000.0,
+            sqft=1000.0,
+        )
+        p3 = Property(
+            id="P3",
+            address="C",
+            coordinates=Coordinates(lat=-40.0, lon=-40.0),
+            price=300000.0,
+            sqft=1000.0,
+        )
+        outliers = validator.detect_spatial_outliers([p1, p2, p3], k_neighbors=2)
+        assert outliers == []

@@ -151,11 +151,14 @@ class ModelMetrics:
 
 ## 2. `real_estate_spatial.spatial`
 
-### Coordinate Utilities (`real_estate_spatial.spatial.coordinates`)
+### Coordinate & Index Utilities (`real_estate_spatial.spatial`)
 - `haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float, radius_km: float = 6371.0) -> float`: Scalar Haversine distance in km.
 - `haversine_distance_vectorized(lat1: float | np.ndarray, lon1: float | np.ndarray, lats: np.ndarray, lons: np.ndarray, radius_km: float = 6371.0) -> np.ndarray`: High-speed vectorized Haversine distance array.
 - `bounding_box(center: Coordinates, radius_km: float) -> BoundingBox`: Calculates geographic bounding box for given radius.
 - `point_in_bbox(point: Coordinates, bbox: BoundingBox) -> bool`: Tests if coordinate lies within bounding box.
+- `chord_distance_to_great_circle_km(chord_dist: float) -> float`: Converts 3D Euclidean chord distance on the unit sphere to great-circle distance in kilometers.
+- `great_circle_km_to_chord_distance(distance_km: float) -> float`: Converts great-circle distance in kilometers to 3D Euclidean chord distance on the unit sphere.
+- `unpack_bbox(bbox: Union[BoundingBox, Tuple[float, float, float, float], Sequence[float]]) -> Tuple[float, float, float, float]`: Unpacks any supported bounding box representation into `(min_lat, min_lon, max_lat, max_lon)`.
 
 ### `KDTreeIndex(SpatialIndex)`
 Spatial $k$-d tree with 3D unit-sphere projection.
@@ -238,11 +241,22 @@ class CompsEngine:
 - `find_comps(subject: Property, max_comps: int = 5, max_radius_km: float = 10.0, min_similarity: float = 0.0, property_type_match: bool = True) -> List[CompCandidate]`: Retrieves ranked adjusted comparable sales.
 - `value(subject: Property, max_comps: int = 5, max_radius_km: float = 10.0) -> ValuationResult`: Computes valuation from top comparables.
 
+### Date Parsing Helper (`real_estate_spatial.comps.adjustments`)
+- `parse_date_string(d_str: Optional[str]) -> Optional[date]`: Robust parser for ISO-8601 (with `Z` or UTC offset) and date strings (`YYYY-MM-DD`, `YYYY/MM/DD`, `YYYY-MM`, `YYYY`). Returns `datetime.date` or `None`.
+
 ---
 
 ## 4. `real_estate_spatial.models`
 
-### `HedonicSpatialRegression(ValuationModel)`
+### `BaseValuationModel` (alias `ValuationModel`)
+Abstract base class defining the valuation model protocol:
+- `fit(properties: Sequence[Property], validation_split: float = 0.0) -> BaseValuationModel`: Abstract method to train model on property records.
+- `predict(properties: Sequence[Property]) -> np.ndarray`: Abstract method returning an array of predicted prices.
+- `predict_one(prop: Property) -> ValuationResult`: Valuation result for a single property including confidence score, upper/lower bounds, and methodology.
+- `evaluate(test_properties: Sequence[Property]) -> ModelMetrics`: Evaluates predictions on test set and computes standardized metrics (MAPE, MdAPE, RMSE, MAE, R², accuracy within 5%/10%/20%).
+- `compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> ModelMetrics`: Static method computing metrics between ground truth and predictions.
+
+### `HedonicSpatialRegression(BaseValuationModel)`
 Closed-form regularized Ridge regression with coordinate polynomial interactions.
 - `__init__(alpha: float = 1.0)`: Sets L2 regularization parameter.
 - `fit(properties: Sequence[Property], validation_split: float = 0.0) -> HedonicSpatialRegression`: Fits regression model.
@@ -300,10 +314,48 @@ class ValuationOrchestrator:
 - `load_geojson(filepath: Union[str, Path]) -> List[Property]`
 - `save_geojson(properties: Sequence[Property], filepath: Union[str, Path]) -> str`
 
+### `ValidationIssue`
+```python
+@dataclass
+class ValidationIssue:
+    property_id: str
+    field: str
+    rule: str
+    value: Any
+    message: str
+    severity: str = "error"  # "error" | "warning"
+```
+- `to_dict() -> Dict[str, Any]`: Serializes validation issue.
+
+### `ValidationResult`
+```python
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    total_records: int
+    valid_records: int
+    invalid_records: int
+    issues: List[ValidationIssue]
+    summary: Dict[str, int]
+```
+- `to_dict() -> Dict[str, Any]`: Serializes validation result.
+
+### `CleaningReport`
+```python
+@dataclass
+class CleaningReport:
+    initial_count: int
+    cleaned_count: int
+    dropped_count: int
+    imputed_fields: Dict[str, int]
+    dropped_reasons: Dict[str, int]
+```
+- `to_dict() -> Dict[str, Any]`: Serializes cleaning report.
+
 ### `DataValidator`
-- `validate_property(prop: Property) -> ValidationResult`: Validates single property schema and value ranges.
-- `validate_dataset(properties: Sequence[Property], raise_on_error: bool = False) -> List[ValidationResult]`: Validates entire dataset.
-- `detect_spatial_outliers(properties: Sequence[Property], method: str = "zscore", threshold: float = 3.0) -> List[str]`: Identifies IDs of spatial outlier properties.
+- `validate_property(prop: Property) -> List[ValidationIssue]`: Validates single property schema and value ranges.
+- `validate_dataset(properties: Sequence[Property], raise_on_error: bool = False) -> ValidationResult`: Validates entire dataset and summarizes issues.
+- `detect_spatial_outliers(properties: Sequence[Property], k_neighbors: int = 15, z_threshold: float = 3.0, method: str = "zscore") -> List[Tuple[Property, float, str]]`: Identifies local price per sqft outliers relative to $k$-nearest neighbors.
 
 ### `DataCleaner`
 - `clean_dataset(properties: Sequence[Property], drop_invalid: bool = True, drop_outliers: bool = True, impute_missing: bool = True, deduplicate: bool = True) -> Tuple[List[Property], CleaningReport]`
@@ -316,10 +368,51 @@ class ValuationOrchestrator:
 
 ## 7. `real_estate_spatial.analytics`
 
+### `SubmarketMetrics`
+```python
+@dataclass
+class SubmarketMetrics:
+    submarket_id: str
+    property_count: int
+    center_lat: float
+    center_lon: float
+    median_price: float
+    mean_price: float
+    median_price_per_sqft: float
+    mean_price_per_sqft: float
+    min_price: float
+    max_price: float
+    price_std_dev: float
+    price_volatility_pct: float
+    median_sqft: float
+    property_types: Dict[str, int]
+```
+- `to_dict() -> Dict[str, Any]`: Serializes submarket metrics.
+
 ### `SubmarketAnalyzer`
 - `__init__(grid_cell_size_deg: float = 0.05, min_cluster_size: int = 2)`
 - `identify_submarkets(properties: Sequence[Property], method: str = "grid") -> List[SubmarketMetrics]`: Aggregates spatial micro-markets.
 - `generate_market_report(properties: Sequence[Property]) -> Dict[str, Any]`: Generates overall market summary and submarket breakdown.
+
+### `PortfolioRiskSummary`
+```python
+@dataclass
+class PortfolioRiskSummary:
+    total_properties: int
+    total_estimated_value: float
+    mean_estimated_value: float
+    median_estimated_value: float
+    min_estimated_value: float
+    max_estimated_value: float
+    average_confidence: float
+    high_risk_count: int
+    high_risk_property_ids: List[str]
+    total_lower_bound: float
+    total_upper_bound: float
+    portfolio_spread_pct: float
+    property_type_breakdown: Dict[str, Dict[str, float]]
+```
+- `to_dict() -> Dict[str, Any]`: Serializes portfolio risk summary.
 
 ### `PortfolioAssessor`
 - `__init__(orchestrator: Optional[ValuationOrchestrator] = None)`
@@ -337,20 +430,20 @@ The CLI entrypoint is `real-estate-spatial`. All commands support `--json` for m
 - `real-estate-spatial info [--json]`
 
 ### Data Commands
-- `real-estate-spatial generate -n <count> -o <path> [--lat <float>] [--lon <float>] [--seed <int>] [--radius-km <float>] [--json]`
-- `real-estate-spatial validate -i <path> [--outliers] [--method <zscore|iqr>] [--threshold <float>] [--json]`
-- `real-estate-spatial clean -i <path> -o <path> [--no-impute] [--no-drop-outliers] [--json]`
+- `real-estate-spatial generate -n <count> -o <path> [--lat <float>] [--lon <float>] [--radius-km <float>] [--seed <int>] [--json]`
+- `real-estate-spatial validate [-d <dataset>] [--outliers/--no-outliers] [--k-neighbors <int>] [--z-threshold <float>] [--json]`
+- `real-estate-spatial clean [-d <dataset>] [-o <path>] [--drop-invalid/--keep-invalid] [--drop-outliers/--keep-outliers] [--impute/--no-impute] [--json]`
 
 ### Valuation & Modeling Commands
-- `real-estate-spatial comps -i <dataset> --lat <float> --lon <float> --sqft <float> --beds <int> --baths <float> [-k <int>] [--radius <float>] [--json]`
-- `real-estate-spatial value -i <dataset> --lat <float> --lon <float> --sqft <float> --beds <int> --baths <float> [--strategy <auto|comps|ensemble|hedonic|gbm>] [--json]`
-- `real-estate-spatial batch-value -d <dataset> -i <target_props> -o <out_valuations> [--strategy <str>] [--json]`
-- `real-estate-spatial train -i <dataset> [--model <ensemble|hedonic|gbm>] [--split <float>] [--json]`
-- `real-estate-spatial benchmark -i <dataset> [--split <float>] [--json]`
+- `real-estate-spatial comps [-d <dataset>] --lat <float> --lon <float> --sqft <float> [--beds <int>] [--baths <float>] [--lot-size <float>] [--year-built <int>] [-t <single_family|condo|townhouse|multi_family|land>] [-k <int>] [-r <float>] [--auto-clean] [--json]`
+- `real-estate-spatial value [-d <dataset>] --lat <float> --lon <float> --sqft <float> [--beds <int>] [--baths <float>] [--lot-size <float>] [--year-built <int>] [-t <single_family|condo|townhouse|multi_family|land>] [-m <auto|ensemble|comps|hedonic|gbm>] [--auto-clean] [--explain] [--json]`
+- `real-estate-spatial batch-value [-d <dataset>] -i <target_props> [-o <out_valuations>] [-s <auto|ensemble|comps|hedonic|gbm>] [--auto-clean] [--json]`
+- `real-estate-spatial train [-d <dataset>] [-m <hedonic|gbm|ensemble>] [-o <output_metrics_json>] [--split <float>] [--auto-clean] [--json]`
+- `real-estate-spatial benchmark [-d <dataset>] [--split <float>] [--auto-clean] [--json]`
 
 ### Analytics Commands
-- `real-estate-spatial submarket -i <dataset> [--cell-size <float>] [--method <grid|spatial>] [--json]`
-- `real-estate-spatial portfolio -i <dataset> [--shock-pct <float>] [--hotspot "lat,lon,radius_km,shock_pct"] [--json]`
+- `real-estate-spatial submarket [-d <dataset>] [-o <output_report_json>] [-m <grid|spatial_clustering>] [--cell-size <float>] [--min-size <int>] [--auto-clean] [--json]`
+- `real-estate-spatial portfolio [-d <dataset>] -p <portfolio_file> [-o <output_report_json>] [--stress-shock <float>] [--auto-clean] [--json]`
 
 ---
 

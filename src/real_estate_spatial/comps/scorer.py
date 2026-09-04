@@ -47,6 +47,7 @@ class SimilarityScorer:
                 comp.coordinates.lat,
                 comp.coordinates.lon,
             )
+        distance_km = max(0.0, float(distance_km))
 
         # Distance score: exponential decay
         dist_sim = math.exp(-2.0 * (distance_km / self.max_distance_km))
