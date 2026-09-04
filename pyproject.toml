@@ -29,7 +29,8 @@ ml = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "ruff>=0.1.0"
+    "ruff>=0.1.0",
+    "mypy>=1.0.0"
 ]
 all = [
     "real-estate-spatial[ml,dev]"
@@ -59,3 +60,11 @@ ignore = ["E501"]
 [tool.coverage.run]
 source = ["real_estate_spatial"]
 omit = ["tests/*"]
+
+[tool.mypy]
+mypy_path = "src"
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_redundant_casts = true

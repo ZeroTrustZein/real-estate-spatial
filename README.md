@@ -103,7 +103,9 @@ for feature, impact in explanation["key_drivers"].items():
 
 print(f"\nComps Selected: {len(result.comps_used)}")
 for comp in result.comps_used[:3]:
-    print(f"  Comp {comp.property.id}: Base=${comp.property.price:,.0f} -> Adj=${comp.adjusted_price:,.0f} (Sim: {comp.similarity_score:.3f})")
+    print(
+        f"  Comp {comp.property.id}: Base=${comp.property.price:,.0f} -> Adj=${comp.adjusted_price:,.0f} (Sim: {comp.similarity_score:.3f})"
+    )
 ```
 
 ---

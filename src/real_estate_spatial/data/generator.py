@@ -91,7 +91,8 @@ class SyntheticRealEstateGenerator:
 
         for i in range(count):
             # Pick a cluster
-            cluster = np.random.choice(clusters, p=cluster_weights)
+            cluster_idx = int(np.random.choice(len(clusters), p=cluster_weights))
+            cluster = clusters[cluster_idx]
             lat = cluster["lat"] + np.random.normal(0.0, 0.018)
             lon = cluster["lon"] + np.random.normal(0.0, 0.018)
 

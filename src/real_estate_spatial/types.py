@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -357,17 +358,17 @@ class CompCandidate:
     adjusted_price: float
     adjustments: Dict[str, float] = field(default_factory=dict)
 
-    @property
+    @builtins.property
     def net_adjustment(self) -> float:
         """Sum of all positive and negative adjustment amounts."""
         return sum(self.adjustments.values())
 
-    @property
+    @builtins.property
     def gross_adjustment(self) -> float:
         """Sum of absolute adjustment amounts."""
         return sum(abs(v) for v in self.adjustments.values())
 
-    @property
+    @builtins.property
     def net_adjustment_pct(self) -> float:
         """Percentage of net adjustment relative to original property price."""
         if self.property.price is not None and self.property.price > 0:

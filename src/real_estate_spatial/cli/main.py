@@ -37,6 +37,7 @@ from real_estate_spatial.data.cleaner import DataCleaner
 from real_estate_spatial.data.generator import SyntheticRealEstateGenerator
 from real_estate_spatial.data.loader import PropertyDataLoader
 from real_estate_spatial.data.validator import DataValidator
+from real_estate_spatial.models.base import BaseValuationModel
 from real_estate_spatial.models.ensemble import EnsembleValuationModel
 from real_estate_spatial.models.hedonic import HedonicSpatialRegression
 from real_estate_spatial.models.spatial_gbm import SpatialGradientBoostingModel
@@ -669,6 +670,7 @@ def train_cmd(
         eval_props = props
 
     m_lower = method.lower()
+    model: BaseValuationModel
     if m_lower == "hedonic":
         model = HedonicSpatialRegression().fit(train_props)
     elif m_lower == "gbm":
