@@ -131,6 +131,7 @@ def _save_valuations(results: Sequence[ValuationResult], filepath: Union[str, Pa
 
 
 @click.group()
+@click.version_option(real_estate_spatial.__version__, "--version", prog_name="real-estate-spatial")
 def cli() -> None:
     """Real Estate Spatial Valuation & Comparables Engine CLI."""
     pass

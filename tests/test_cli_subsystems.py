@@ -553,7 +553,8 @@ class TestCLISubsystems:
         data_val = json.loads(res_value.output)
         assert "estimated_value" in data_val
 
-    def test_main_entry_module_execution(self):
+    @pytest.mark.parametrize("module", ["real_estate_spatial.cli.main", "real_estate_spatial"])
+    def test_main_entry_module_execution(self, module):
         import runpy
         import sys
         import warnings
@@ -564,7 +565,7 @@ class TestCLISubsystems:
             with pytest.raises(SystemExit) as exc_info:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
-                    runpy.run_module("real_estate_spatial.cli.main", run_name="__main__")
+                    runpy.run_module(module, run_name="__main__")
             assert exc_info.value.code == 0
         finally:
             sys.argv = old_argv

@@ -1,6 +1,11 @@
 """real-estate-spatial: Spatial property valuation and automated comparables engine."""
 
-from real_estate_spatial.analytics.portfolio import PortfolioAssessor, PortfolioRiskSummary
+__version__ = "0.1.0"
+
+from real_estate_spatial.analytics.portfolio import (
+    PortfolioAssessor,
+    PortfolioRiskSummary,
+)
 from real_estate_spatial.analytics.submarket import SubmarketAnalyzer, SubmarketMetrics
 from real_estate_spatial.cli.main import cli
 from real_estate_spatial.comps.adjustments import CompAdjustmentCalculator
