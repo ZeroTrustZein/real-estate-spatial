@@ -47,7 +47,8 @@ include = ["real_estate_spatial*"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --cov=real_estate_spatial --cov-report=term-missing"
+pythonpath = ["src"]
+addopts = "-v"
 
 [tool.ruff]
 line-length = 100
