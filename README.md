@@ -1,8 +1,8 @@
 # real-estate-spatial
 
-[![CI](https://github.com/zein/real-estate-spatial/actions/workflows/ci.yml/badge.svg)](https://github.com/zein/real-estate-spatial/actions)
+[![CI](https://github.com/ZeroTrustZein/real-estate-spatial/actions/workflows/ci.yml/badge.svg)](https://github.com/ZeroTrustZein/real-estate-spatial/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
 **Real Estate Spatial Valuation & Market Analytics Engine** is a high-performance Python framework for automated real estate valuation (AVM), appraisal-grade comparable sales selection, spatial feature engineering, and portfolio-level macroeconomic stress testing.
